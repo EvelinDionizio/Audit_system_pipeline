@@ -1,0 +1,18 @@
+# Ambiente virtual
+.venv/
+
+# Variáveis de ambiente (nunca commitar o token)
+.env
+
+# Outputs gerados automaticamente
+output/
+
+# Cache Python
+__pycache__/
+*.pyc
+*.pyo
+
+# IDEs
+.idea/
+.vscode/
+*.iml
