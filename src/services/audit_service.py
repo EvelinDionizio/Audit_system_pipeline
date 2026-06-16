@@ -2,7 +2,7 @@ from api.client import get
 
 
 # Endpoint de avaliações — conforme documentação oficial Checklist Fácil
-EVALUATIONS_ENDPOINT = "v2/evaluations"
+EVALUATIONS_ENDPOINT = "v1/evaluations"
 
 # Status numéricos conforme documentação:
 # 1=Não Iniciado | 2=Em Andamento | 3=Em Análise | 4=Reprovado | 5=Reaberto | 6=Concluído
