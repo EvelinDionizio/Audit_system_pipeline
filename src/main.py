@@ -44,7 +44,7 @@ def main():
         print(f"\n  ID {cab.get('id')} — {cab.get('checklist_nome', 'N/A')}")
         print(f"    Unidade        : {cab.get('unidade_nome', 'N/A')}")
         print(f"    Auditor        : {cab.get('auditor_nome', 'N/A')}")
-        print(f"    Itens relevantes: {resumo.get('total_itens_relevantes', 0)}")
+        print(f"    Itens c/ coment: {resumo.get('total_itens_com_comentario', 0)}")
         print(f"    Nao conformes  : {resumo.get('total_nao_conformes', 0)}")
         print(f"    Parciais       : {resumo.get('total_parciais', 0)}")
         print(f"    Requer RAG     : {'SIM' if resumo.get('requer_rag') else 'NAO'}")
