@@ -1,0 +1,57 @@
+{
+  "cabecalho": {
+    "id": 204995587,
+    "checklist_nome": "",
+    "unidade_nome": "",
+    "auditor_nome": "",
+    "status": 3,
+    "pontuacao_total": null,
+    "pontuacao_maxima": null,
+    "data_inicio": "2026-06-15T13:29:44+00:00",
+    "data_conclusao": "2026-06-15T15:44:45+00:00"
+  },
+  "itens": [
+    {
+      "id": 35964848,
+      "pergunta": "O evento possui ambulatório médico no local?",
+      "resposta_codigo": 3,
+      "resposta_texto": null,
+      "comentario": "Durante a auditoria foi constatado que havia ambulatório no local, 2 ambuláncias no local e 2 equipes com médicos, técnicos em enfermagem e motoristas socorristas.",
+      "nao_conforme": false,
+      "parcial": false
+    },
+    {
+      "id": 35964849,
+      "pergunta": "O evento possui ambulância para atuação em caso de emergência?",
+      "resposta_codigo": 3,
+      "resposta_texto": null,
+      "comentario": "Sim. 2 ambuláncias bem equipadas no local com 2 equipes com médicos, técnicos em enfermagem e motoristas socorristas.",
+      "nao_conforme": false,
+      "parcial": false
+    },
+    {
+      "id": 35964851,
+      "pergunta": "O evento possui posto de acolhimento e este possui profissionais específicos? (Psicólogo, assistente social, etc)",
+      "resposta_codigo": 1,
+      "resposta_texto": null,
+      "comentario": "O evento não possui posto de acolhimento com profissionais específicos como Psicólogo e Assistente Social. Apenas médicos e técnicos em enfermagem e brigadistas.",
+      "nao_conforme": false,
+      "parcial": false
+    },
+    {
+      "id": 35964864,
+      "pergunta": "O evento possui meios de comunicação de denuncias, assédio e outras situações? (Cartazes informativos, distribuição de folders, etc)",
+      "resposta_codigo": 3,
+      "resposta_texto": null,
+      "comentario": "O evento possui cartazes com canal de comunicação de denuncias, assédio e outras situações afixados em diversos locais.",
+      "nao_conforme": false,
+      "parcial": false
+    }
+  ],
+  "resumo": {
+    "total_itens_com_comentario": 4,
+    "total_nao_conformes": 0,
+    "total_parciais": 0,
+    "requer_rag": false
+  }
+}

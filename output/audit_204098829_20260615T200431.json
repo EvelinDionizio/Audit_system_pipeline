@@ -1,0 +1,66 @@
+{
+  "cabecalho": {
+    "id": 204098829,
+    "checklist_nome": "Renner | Hospedagem",
+    "unidade_nome": "YCM-40188-SH MESTRE ALVARO",
+    "auditor_nome": "Auditor Externo",
+    "departamento": [
+      "RENNER"
+    ],
+    "status": 3,
+    "pontuacao_total": null,
+    "plataforma": 1,
+    "data_inicio": "2026-06-09T05:58:01+00:00",
+    "data_conclusao": "2026-06-12T12:09:07+00:00",
+    "comentario_final": ""
+  },
+  "itens": [
+    {
+      "id": 41732892,
+      "categoria": "EMPRESAS AUDITADAS",
+      "pergunta": "EMPRESAS AVALIADAS - CNPJ - ATIVIDADES PRINCIPAIS",
+      "tipo_resposta": "texto",
+      "resposta_codigo": null,
+      "resposta_texto": "QUALITY\nHBT",
+      "comentario": null,
+      "nao_conforme": false,
+      "parcial": false,
+      "nao_aplicavel": false,
+      "total_anexos": 0
+    },
+    {
+      "id": 41732893,
+      "categoria": "EMPRESAS AUDITADAS",
+      "pergunta": "ENDEREÇOS DOS ALOJAMENTOS",
+      "tipo_resposta": "texto",
+      "resposta_codigo": null,
+      "resposta_texto": "RUA DESEMBARGADOR DANTON BASTOS, BAIRRO REPUBLICA, NO 25 - QUALITY\nRUA EMILIOO MALLET, Nº317, CONJ 1503, VILA GOMES CARDIM - HBT ENGENHARIA",
+      "comentario": null,
+      "nao_conforme": false,
+      "parcial": false,
+      "nao_aplicavel": false,
+      "total_anexos": 0
+    },
+    {
+      "id": 41732941,
+      "categoria": "PARECER TÉCNICO GERAL",
+      "pergunta": "PARECER TÉCNICO",
+      "tipo_resposta": "texto",
+      "resposta_codigo": null,
+      "resposta_texto": "1. OBJETIVO\nRealizar verificação das condições dos alojamentos disponibilizados aos colaboradores das empresas contratadas, com o objetivo de avaliar aspectos relacionados à habitabilidade, higiene, conforto, segurança, acessibilidade às informações de direitos dos trabalhadores e atendimento aos requisitos estabelecidos pela legislação trabalhista e pelas diretrizes corporativas aplicáveis.\n2. LOCAIS INFORMADOS PARA HOSPEDAGEM\nEmpresa QUALITY\nRua Desembargador Danton Bastos, nº 25, Bairro República.\nEmpresa HBT Engenharia\nRua Emílio Mallet, nº 317, Conjunto 1503, Vila Gomes Cardim.\n3. DESCRIÇÃO DAS VERIFICAÇÕES REALIZADAS\nDurante a inspeção em campo, foram realizadas diligências nos endereços informados pelas empresas para hospedagem de seus colaboradores.\nNo endereço informado pela empresa QUALITY, situado na Rua Desembargador Danton Bastos, nº 25, Bairro República, não foi possível realizar a inspeção e avaliação das instalações utilizadas como alojamento, impossibilitando a obtenção de evidências objetivas quanto às condições de habitabilidade, higiene, conforto e segurança do local.\nEntretanto, também não foi possível acessar e inspecionar este local, uma vez que os colaboradores encontravam-se dormindo durante a visita e não houve atendimento por parte da recepção ou responsável pelo estabelecimento, impedindo o ingresso da auditoria nas dependências.\n\nEm relação ao endereço informado pela HBT Engenharia, localizado na Rua Emílio Mallet, nº 317, Conjunto 1503, Vila Gomes Cardim, foi constatado que existe outra unidade no mesmo condomínio utilizada para hospedagem de colaboradores. Contudo, a inspeção dessa unidade não pôde ser realizada, visto que havia colaboradores descansando no interior do imóvel e não foi possível obter acesso para avaliação das condições das instalações.\n\n4. NÃO CONFORMIDADE IDENTIFICADA\nDurante as verificações realizadas, constatou-se a ausência de cartaz, aviso ou qualquer outro meio de comunicação visível contendo os canais de denúncia disponibilizados aos trabalhadores.\nA inexistência dessa comunicação configura uma não conformidade em relação às boas práticas de gestão de pessoas, compliance, direitos humanos e mecanismos de reporte, uma vez que dificulta o acesso dos colaboradores aos canais formais destinados à comunicação de irregularidades, denúncias de assédio, condições inadequadas de trabalho, violações de direitos ou quaisquer outras situações que demandem tratamento pela organização.\nClassificação da Não Conformidade: Não Conformidade (NC).\n\n5. CONCLUSÃO\nCom base nas evidências obtidas durante a inspeção, conclui-se que não foi possível realizar a avaliação completa das condições dos alojamentos informados pelas empresas QUALITY e HBT Engenharia, em razão da impossibilidade de acesso às unidades utilizadas para hospedagem dos colaboradores durante o período da auditoria.\nDessa forma, ficaram prejudicadas as verificações referentes às condições de habitabilidade, higiene, conforto, segurança, conservação, ocupação e adequação das instalações.\nAdicionalmente, na unidade inspecionada foi identificada a ausência de divulgação visível dos canais de denúncia aos trabalhadores, configurando uma Não Conformidade que requer ação corretiva por parte das empresas auditadas, os demais itens verificados estavam conformes, com roupas de cama limpas, o ambiente organizado, as informações de quantitativo e identificação das pessoas naquele alojamento estavam conformes e sem indícios de superlotação na unidade e demais informações estavam em conformidade.",
+      "comentario": null,
+      "nao_conforme": false,
+      "parcial": false,
+      "nao_aplicavel": false,
+      "total_anexos": 0
+    }
+  ],
+  "resumo": {
+    "total_itens_relevantes": 3,
+    "total_nao_conformes": 0,
+    "total_parciais": 0,
+    "total_nao_aplicaveis": 0,
+    "total_texto_livre": 3,
+    "requer_rag": false
+  }
+}

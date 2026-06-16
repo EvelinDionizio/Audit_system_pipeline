@@ -1,0 +1,20 @@
+{
+  "cabecalho": {
+    "id": 204098829,
+    "checklist_nome": "",
+    "unidade_nome": "",
+    "auditor_nome": "",
+    "status": 3,
+    "pontuacao_total": null,
+    "pontuacao_maxima": null,
+    "data_inicio": "2026-06-09T05:58:01+00:00",
+    "data_conclusao": "2026-06-12T12:09:07+00:00"
+  },
+  "itens": [],
+  "resumo": {
+    "total_itens_com_comentario": 0,
+    "total_nao_conformes": 0,
+    "total_parciais": 0,
+    "requer_rag": false
+  }
+}
