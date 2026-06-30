@@ -413,7 +413,7 @@ def load_payloads_from_output(output_dir: str) -> list[dict]:
 
 if __name__ == "__main__":
     import sys
-    output_dir = os.path.join(os.path.dirname(__file__), "..", "output")
+    output_dir = os.path.join(os.path.dirname(__file__), "..", "..", "output")
     payloads = load_payloads_from_output(output_dir)
 
     if not payloads:
