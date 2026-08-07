@@ -1,10 +1,587 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-br">
 <head>
-  <meta charset="UTF-8">
-  <title>$Title$</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Revisão de Auditoria — Bernhoeft</title>
+<style>
+:root {
+  --azul:       #1a3a6b;
+  --azul-md:    #2d5aa0;
+  --azul-lt:    #e8eef8;
+  --verde:      #059669;
+  --verde-lt:   #ecfdf5;
+  --amarelo:    #d97706;
+  --amarelo-lt: #fffbeb;
+  --vermelho:   #dc2626;
+  --vermelho-lt:#fef2f2;
+  --cinza:      #6b7280;
+  --cinza-lt:   #f3f4f6;
+  --borda:      #e5e7eb;
+  --texto:      #111827;
+  --branco:     #ffffff;
+  --radius:     10px;
+  --shadow:     0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f1f5f9; color: var(--texto); min-height: 100vh; }
+
+/* ── HEADER ── */
+header {
+  background: var(--azul);
+  padding: 0 20px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+}
+.header-logo { display: flex; align-items: center; gap: 10px; }
+.header-logo span { color: white; font-size: 15px; font-weight: 600; }
+.header-nav a {
+  color: rgba(255,255,255,.75);
+  text-decoration: none; font-size: 13px;
+  padding: 6px 12px; border-radius: 6px;
+  transition: all .15s;
+}
+.header-nav a:hover { background: rgba(255,255,255,.12); color: white; }
+
+/* ── CONTAINER ── */
+.container { max-width: 680px; margin: 0 auto; padding: 24px 16px 60px; }
+
+/* ── CARD BASE ── */
+.card {
+  background: var(--branco);
+  border-radius: var(--radius);
+  border: 1px solid var(--borda);
+  padding: 20px;
+  box-shadow: var(--shadow);
+  margin-bottom: 16px;
+}
+
+/* ── INPUT SECTION ── */
+.card-entrada h2 { font-size: 15px; font-weight: 600; color: var(--azul); margin-bottom: 4px; }
+.card-entrada p  { font-size: 13px; color: var(--cinza); margin-bottom: 16px; line-height: 1.5; }
+
+.input-grupo { display: flex; gap: 10px; }
+.input-id {
+  flex: 1; border: 1.5px solid var(--borda); border-radius: 8px;
+  padding: 11px 14px; font-size: 20px; font-weight: 600;
+  letter-spacing: 2px; color: var(--azul); outline: none;
+  -moz-appearance: textfield; transition: border-color .2s;
+}
+.input-id::-webkit-outer-spin-button,
+.input-id::-webkit-inner-spin-button { -webkit-appearance: none; }
+.input-id:focus { border-color: var(--azul-md); }
+
+.btn-primary {
+  background: var(--azul); color: white; border: none;
+  border-radius: 8px; padding: 11px 20px; font-size: 14px;
+  font-weight: 600; cursor: pointer; white-space: nowrap;
+  display: flex; align-items: center; gap: 7px;
+  transition: background .15s;
+}
+.btn-primary:hover  { background: var(--azul-md); }
+.btn-primary:disabled { background: var(--borda); color: var(--cinza); cursor: not-allowed; }
+
+.dica { margin-top: 10px; font-size: 12px; color: var(--cinza); display: flex; align-items: center; gap: 5px; }
+
+/* ── SCORE WIDGET ── */
+.score-widget {
+  display: flex; align-items: center; gap: 20px;
+  padding: 16px 20px; border-radius: var(--radius);
+  border: 1px solid var(--borda); margin-bottom: 16px;
+  background: var(--branco);
+}
+.score-circle {
+  width: 72px; height: 72px; border-radius: 50%;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  font-size: 20px; font-weight: 700; flex-shrink: 0;
+  border: 4px solid;
+}
+.score-excelente { border-color: var(--verde); color: var(--verde); }
+.score-bom       { border-color: #3b82f6;      color: #3b82f6; }
+.score-regular   { border-color: var(--amarelo); color: var(--amarelo); }
+.score-critico   { border-color: var(--vermelho); color: var(--vermelho); }
+.score-sem_dados { border-color: var(--cinza);  color: var(--cinza); }
+.score-circle small { font-size: 10px; font-weight: 500; margin-top: 1px; }
+
+.score-info h3    { font-size: 15px; font-weight: 600; color: var(--azul); }
+.score-info .sub  { font-size: 13px; color: var(--cinza); margin-top: 2px; }
+.score-pills      { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.pill {
+  font-size: 11px; font-weight: 600; padding: 3px 9px;
+  border-radius: 20px; display: flex; align-items: center; gap: 4px;
+}
+.pill-nc  { background: var(--vermelho-lt); color: var(--vermelho); }
+.pill-par { background: var(--amarelo-lt);  color: var(--amarelo); }
+.pill-ok  { background: var(--verde-lt);    color: var(--verde); }
+
+/* ── SEÇÃO TÍTULO ── */
+.secao-titulo {
+  font-size: 11px; font-weight: 700; color: var(--cinza);
+  text-transform: uppercase; letter-spacing: .6px;
+  margin: 20px 0 10px;
+}
+
+/* ── FILTRO DE CONFORMIDADE ── */
+.filtro-conformidade {
+  display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.btn-filtro {
+  font-size: 12px; font-weight: 600; padding: 5px 12px;
+  border-radius: 20px; border: 1.5px solid var(--borda);
+  background: var(--branco); color: var(--cinza);
+  cursor: pointer; transition: all .15s;
+}
+.btn-filtro:hover { border-color: var(--azul-md); color: var(--azul-md); }
+.btn-filtro.ativo { background: var(--azul); color: white; border-color: var(--azul); }
+.btn-filtro.ativo-nc  { background: var(--vermelho); color: white; border-color: var(--vermelho); }
+.btn-filtro.ativo-par { background: var(--amarelo);  color: white; border-color: var(--amarelo); }
+.btn-filtro.ativo-ok  { background: var(--verde);    color: white; border-color: var(--verde); }
+
+/* ── ACORDEÃO DE CATEGORIA ── */
+.acordeao {
+  background: var(--branco); border-radius: var(--radius);
+  border: 1px solid var(--borda); margin-bottom: 8px;
+  box-shadow: var(--shadow); overflow: hidden;
+}
+.acordeao-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; cursor: pointer; user-select: none;
+  transition: background .15s; gap: 10px;
+}
+.acordeao-header:hover { background: var(--cinza-lt); }
+.acordeao-titulo {
+  font-size: 13px; font-weight: 600; color: var(--azul);
+  text-transform: uppercase; letter-spacing: .3px; flex: 1;
+}
+.acordeao-meta { display: flex; align-items: center; gap: 8px; }
+.acordeao-seta {
+  font-size: 11px; color: var(--cinza); transition: transform .2s;
+  flex-shrink: 0;
+}
+.acordeao.aberto .acordeao-seta { transform: rotate(180deg); }
+.acordeao-corpo { display: none; padding: 0 10px 10px; }
+.acordeao.aberto .acordeao-corpo { display: block; }
+
+/* ── ITEM SUGESTÃO ── */
+.item-card {
+  background: var(--branco);
+  border-radius: var(--radius);
+  border: 1px solid var(--borda);
+  margin-bottom: 10px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.item-card.obrigatorio { border-left: 4px solid var(--vermelho); }
+.item-card.sugestao    { border-left: 4px solid var(--amarelo); }
+.item-card.ok          { border-left: 4px solid var(--verde); }
+
+.item-header {
+  padding: 12px 16px 8px;
+  border-bottom: 1px solid var(--borda);
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
+}
+.item-header-left { flex: 1; }
+.item-categoria   { font-size: 10px; font-weight: 700; color: var(--azul-md); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 3px; }
+.item-pergunta    { font-size: 13px; font-weight: 500; color: var(--texto); line-height: 1.4; }
+
+.badge-tipo {
+  font-size: 10px; font-weight: 700; padding: 3px 8px;
+  border-radius: 4px; white-space: nowrap; flex-shrink: 0;
+}
+.badge-obrigatorio { background: var(--vermelho-lt); color: var(--vermelho); }
+.badge-sugestao    { background: var(--amarelo-lt);  color: var(--amarelo); }
+.badge-crit        { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 12px; margin-left: 6px; }
+.badge-mandatorio  { background: var(--vermelho-lt); color: var(--vermelho); }
+.badge-importantes { background: var(--amarelo-lt);  color: var(--amarelo); }
+.badge-desejaveis  { background: var(--azul-lt);     color: var(--azul-md); }
+
+.item-body  { padding: 12px 16px 14px; }
+.label-mini { font-size: 10px; font-weight: 700; color: var(--cinza); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; margin-top: 10px; }
+.label-mini:first-child { margin-top: 0; }
+
+.resp-original  { font-size: 13px; color: var(--cinza); background: var(--cinza-lt); border-radius: 6px; padding: 8px 10px; line-height: 1.5; }
+.resp-sugestao  { font-size: 13px; color: var(--texto); background: var(--verde-lt); border: 1px solid #bbf7d0; border-radius: 6px; padding: 8px 10px; line-height: 1.5; }
+.resp-urgente   { font-size: 13px; color: var(--texto); background: var(--vermelho-lt); border: 1px solid #fecaca; border-radius: 6px; padding: 8px 10px; line-height: 1.5; }
+.resp-ok        { font-size: 13px; color: var(--verde); display: flex; align-items: center; gap: 5px; margin-top: 6px; }
+
+/* ── PARECER ── */
+.card-parecer h3 { font-size: 14px; font-weight: 600; color: var(--azul); margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--borda); }
+.parecer-texto   { font-size: 13px; line-height: 1.7; color: var(--texto); white-space: pre-wrap; }
+.btn-copiar {
+  margin-top: 12px; background: var(--cinza-lt); border: 1px solid var(--borda);
+  border-radius: 6px; padding: 7px 13px; font-size: 12px; font-weight: 500;
+  cursor: pointer; color: var(--cinza); display: inline-flex; align-items: center;
+  gap: 5px; transition: background .15s;
+}
+.btn-copiar:hover { background: #e5e7eb; }
+
+/* ── ESTADOS ── */
+#loading { display: none; text-align: center; padding: 40px 20px; }
+.spinner {
+  width: 34px; height: 34px; border: 3px solid var(--borda);
+  border-top-color: var(--azul); border-radius: 50%;
+  animation: spin .7s linear infinite; margin: 0 auto 14px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+#loading p { font-size: 14px; color: var(--cinza); }
+
+.alerta-erro {
+  display: none; background: var(--vermelho-lt); border: 1px solid #fecaca;
+  border-radius: var(--radius); padding: 14px 16px; color: var(--vermelho);
+  font-size: 13px; margin-bottom: 14px; line-height: 1.5;
+}
+#resultado { display: none; }
+
+@media (max-width: 480px) {
+  .input-grupo { flex-direction: column; }
+  .score-widget { flex-direction: column; text-align: center; }
+  .score-pills { justify-content: center; }
+}
+</style>
 </head>
 <body>
-$END$
+
+<header>
+  <div class="header-logo">
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+      <rect width="28" height="28" rx="6" fill="white" fill-opacity=".15"/>
+      <path d="M7 9h14M7 14h9M7 19h11" stroke="white" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    <span>Revisão de Auditoria</span>
+  </div>
+  <nav class="header-nav">
+    <a href="/analista">Painel do Analista →</a>
+  </nav>
+</header>
+
+<div class="container">
+
+  <div class="card card-entrada">
+    <h2>Solicitar revisão</h2>
+    <p>No app do Checklist Fácil, acesse <strong>Detalhes do checklist</strong> e copie o número da <strong>Aplicação atual</strong> (ex: #123456789).</p>
+    <div class="input-grupo">
+      <input type="number" id="input-id" class="input-id" placeholder="123456789" inputmode="numeric" autofocus/>
+      <button class="btn-primary" id="btn-revisar" onclick="solicitar()">
+        <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        Revisar
+      </button>
+    </div>
+    <div class="dica">
+      <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 8v4m0 4h.01"/></svg>
+      Digite apenas os números, sem o # inicial
+    </div>
+  </div>
+
+  <div class="alerta-erro" id="erro"></div>
+  <div id="loading"><div class="spinner"></div><p>Analisando com IA…</p></div>
+  <div id="resultado"></div>
+
+</div>
+
+<script>
+// ── CONFIGURAÇÃO GLOBAL ───────────────────────────────────────────────────────
+const TOKEN  = localStorage.getItem("token");
+const nome   = localStorage.getItem("nome")   || "";
+const perfil = localStorage.getItem("perfil") || "";
+
+if (!TOKEN) { window.location.href = "/login"; }
+
+// ── FETCH OVERRIDE — deve vir ANTES de qualquer chamada ──────────────────────
+const _origFetch = window.fetch;
+window.fetch = function(url, opts) {
+  opts = opts || {};
+  if (typeof url === "string" && url.startsWith("http")) {
+    url = url.replace(/^https?:\/\/[^\/]+/, "");
+  }
+  opts.headers = Object.assign({}, opts.headers || {}, {
+    "Authorization": "Bearer " + TOKEN
+  });
+  return _origFetch(url, opts).then(function(r) {
+    if (r.status === 401) { localStorage.clear(); window.location.href = "/login"; }
+    return r;
+  });
+};
+
+const API = "";
+
+document.addEventListener("DOMContentLoaded", function() {
+  const nav = document.querySelector(".header-nav");
+  if (nav) {
+    nav.innerHTML =
+      '<span style="color:rgba(255,255,255,.6);font-size:12px;margin-right:8px">' + nome + '</span>'
+      + (perfil === "analista" ? '<a href="/analista">Painel →</a>' : "")
+      + '<a href="#" onclick="sair();return false" style="color:rgba(255,255,255,.6)">Sair</a>';
+  }
+});
+
+function sair() {
+  fetch("/api/logout", {method:"POST"});
+  localStorage.clear();
+  window.location.href = "/login";
+}
+
+async function solicitar() {
+  const raw = document.getElementById("input-id").value.trim();
+  if (!raw) return mostrarErro("Digite o número da aplicação.");
+  const id = parseInt(raw.replace("#",""));
+  if (isNaN(id)) return mostrarErro("Número inválido.");
+
+  esconder("erro"); esconder("resultado"); mostrar("loading");
+  document.getElementById("btn-revisar").disabled = true;
+
+  try {
+    const res  = await fetch(`${API}/api/revisar`, {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({evaluation_id: id})
+    });
+    const data = await res.json();
+    esconder("loading");
+    if (!res.ok) return mostrarErro(data.detail || "Erro na requisição.");
+    renderizar(data);
+  } catch(e) {
+    esconder("loading");
+    mostrarErro("Não foi possível conectar ao servidor.");
+  } finally {
+    document.getElementById("btn-revisar").disabled = false;
+  }
+}
+
+function limparMarkdown(txt) {
+  if (!txt) return txt;
+  return txt
+    .replace(/#{1,6}\s*/g, "")           // remove ## ### etc
+    .replace(/\*\*(.+?)\*\*/g, "$1")     // remove **negrito**
+    .replace(/\*(.+?)\*/g, "$1")         // remove *itálico*
+    .replace(/---\s*/g, "")              // remove separadores ---
+    .replace(/^\s*[-*]\s+/gm, "• ")      // normaliza listas
+    .replace(/
+{3,}/g, "
+
+")          // remove linhas em branco extras
+    .trim();
+}
+
+function renderizar(data) {
+  const r       = data.resumo || {};
+  const pct     = r.percentual_conformidade;
+  const nivel   = r.nivel_conformidade || "sem_dados";
+  const itens   = (data.sugestoes || {}).itens || [];
+  const parecer = (data.sugestoes || {}).parecer || "";
+
+  const statusLabel = r.status === 2 ? "Em Andamento" : "Em Análise";
+  const statusStyle = r.status === 2 ? "background:#fef3c7;color:#92400e" : "background:#dbeafe;color:#1e40af";
+
+  // Score circle
+  const pctStr = pct !== null && pct !== undefined ? `${pct}%` : "—";
+  const scoreHTML = `
+    <div class="score-widget">
+      <div class="score-circle score-${nivel}">
+        <span>${pctStr}</span>
+        <small>score</small>
+      </div>
+      <div class="score-info">
+        <h3>${data.checklist || "Auditoria"}</h3>
+        <div class="sub">${data.unidade || ""} · <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;${statusStyle}">${statusLabel}</span></div>
+        <div class="score-pills" style="margin-top:8px">
+          <span class="pill pill-nc">✗ ${r.nao_conformes||0} NC</span>
+          <span class="pill pill-par">~ ${r.parciais||0} Parciais</span>
+          <span class="pill pill-ok">✓ ${r.conformes||0} Conformes</span>
+          <span style="font-size:11px;color:#6b7280;align-self:center">ID #${data.evaluation_id}</span>
+        </div>
+      </div>
+    </div>`;
+
+  // ── Filtro de conformidade + Acordeões por categoria ────────────────────
+  let itensHTML = "";
+  if (itens.length > 0) {
+
+    // Conta por tipo para os badges dos filtros
+    const totalNC  = itens.filter(i => i.sugestao && i.criticidade === "Mandatório").length;
+    const totalSug = itens.filter(i => i.sugestao && i.criticidade !== "Mandatório").length;
+    const totalOk  = itens.filter(i => !i.sugestao).length;
+
+    itensHTML += `
+      <div class="secao-titulo">Sugestões por item</div>
+      <div class="filtro-conformidade">
+        <button class="btn-filtro ativo" id="f-todos"     onclick="filtrarItens('todos')">Todos (${itens.length})</button>
+        <button class="btn-filtro"       id="f-nc"        onclick="filtrarItens('nc')">⚠ Obrigatório (${totalNC})</button>
+        <button class="btn-filtro"       id="f-sugestao"  onclick="filtrarItens('sugestao')">💡 Sugestão (${totalSug})</button>
+        <button class="btn-filtro"       id="f-ok"        onclick="filtrarItens('ok')">✓ Adequados (${totalOk})</button>
+      </div>`;
+
+    // Agrupa itens por categoria
+    const categorias = {};
+    itens.forEach(item => {
+      const cat = item.categoria || "Geral";
+      if (!categorias[cat]) categorias[cat] = [];
+      categorias[cat].push(item);
+    });
+
+    // Gera HTML de um item
+    function htmlItem(item) {
+      const crit = item.criticidade || "";
+      const temSugestao   = item.sugestao && item.sugestao !== item.resposta_original;
+      const temTextoCampo = item.texto_campo;
+      const isObrigatorio = item.obrigatorio === true || (crit === "Mandatório" && temSugestao);
+      const cardClass = isObrigatorio ? "obrigatorio" : temSugestao || temTextoCampo ? "sugestao" : "ok";
+      const tipo      = isObrigatorio ? "nc" : temSugestao || temTextoCampo ? "sugestao" : "ok";
+
+      const badgeTipo = isObrigatorio
+        ? `<span class="badge-tipo badge-obrigatorio">⚠ Obrigatório</span>`
+        : temSugestao || temTextoCampo
+        ? `<span class="badge-tipo badge-sugestao">💡 Sugestão</span>`
+        : "";
+
+      const critClass = crit === "Mandatório" ? "badge-mandatorio"
+                      : crit === "Importantes" ? "badge-importantes" : "badge-desejaveis";
+      const critBadge = crit ? `<span class="badge-crit ${critClass}">${crit}</span>` : "";
+
+      const sugestaoLimpa   = limparMarkdown(item.sugestao);
+      const textoLimpo      = limparMarkdown(item.texto_campo);
+
+      // Bloco de recomendação da IA
+      const blocoRecomendacao = temSugestao ? `
+        <div class="label-mini">${isObrigatorio ? "⚠ Correção obrigatória" : "💡 Recomendação da IA"}</div>
+        <div class="${isObrigatorio ? "resp-urgente" : "resp-sugestao"}">${sugestaoLimpa}</div>` : "";
+
+      // Bloco de texto pronto para copiar
+      const blocoTextoCampo = textoLimpo ? `
+        <div class="label-mini" style="margin-top:10px">📋 Texto sugerido para o campo
+          <button onclick="copiarTexto(this, '${encodeURIComponent(textoLimpo)}')"
+            style="margin-left:8px;font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid var(--borda);background:var(--cinza-lt);cursor:pointer;color:var(--cinza)">
+            Copiar
+          </button>
+        </div>
+        <div class="resp-sugestao" style="background:#f0f9ff;border-color:#bae6fd;font-style:italic">${textoLimpo}</div>` : "";
+
+      const respostaArea = temSugestao || temTextoCampo
+        ? blocoRecomendacao + blocoTextoCampo
+        : `<div class="resp-ok"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Resposta adequada</div>`;
+
+      return `<div class="item-card ${cardClass}" data-tipo="${tipo}" style="margin-top:8px">
+        <div class="item-header">
+          <div class="item-header-left">
+            <div class="item-categoria">${critBadge}</div>
+            <div class="item-pergunta">${item.pergunta || ""}</div>
+          </div>
+          ${badgeTipo}
+        </div>
+        <div class="item-body">
+          ${item.resposta_original ? `<div class="label-mini">Resposta original</div><div class="resp-original">${item.resposta_original}</div>` : ""}
+          ${respostaArea}
+          ${item.justificativa ? `<div class="label-mini">Fundamentação</div><div class="resp-original">${limparMarkdown(item.justificativa)}</div>` : ""}
+        </div>
+      </div>`;
+    }
+
+    // Gera acordeões — abre automaticamente os que têm NC ou sugestão
+    Object.entries(categorias).forEach(([cat, catItens]) => {
+      const temProblema = catItens.some(i => i.sugestao);
+      const countNC  = catItens.filter(i => i.sugestao && i.criticidade === "Mandatório").length;
+      const countSug = catItens.filter(i => i.sugestao && i.criticidade !== "Mandatório").length;
+
+      const badges = [
+        countNC  > 0 ? `<span class="pill pill-nc" style="font-size:10px;padding:2px 7px">${countNC} NC</span>` : "",
+        countSug > 0 ? `<span class="pill pill-par" style="font-size:10px;padding:2px 7px">${countSug} sugestão</span>` : "",
+      ].filter(Boolean).join("");
+
+      const itensDaCat = catItens.map(htmlItem).join("");
+
+      itensHTML += `
+        <div class="acordeao ${temProblema ? "aberto" : ""}" id="cat-${cat.replace(/\s+/g,'-')}">
+          <div class="acordeao-header" onclick="toggleAcordeao(this)">
+            <div class="acordeao-titulo">${cat}</div>
+            <div class="acordeao-meta">
+              ${badges}
+              <span style="font-size:11px;color:var(--cinza)">${catItens.length} item(s)</span>
+            </div>
+            <span class="acordeao-seta">▼</span>
+          </div>
+          <div class="acordeao-corpo">${itensDaCat}</div>
+        </div>`;
+    });
+  }
+
+  // Parecer
+  let parecerHTML = "";
+  if (parecer) {
+    parecerHTML = `
+      <div class="card card-parecer">
+        <h3>Parecer técnico</h3>
+        <div class="parecer-texto" id="parecer-txt">${limparMarkdown(parecer)}</div>
+        <button class="btn-copiar" onclick="copiar()">
+          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          Copiar parecer
+        </button>
+      </div>`;
+  }
+
+  document.getElementById("resultado").innerHTML = scoreHTML + itensHTML + parecerHTML;
+  mostrar("resultado");
+  document.getElementById("resultado").scrollIntoView({behavior:"smooth"});
+}
+
+function toggleAcordeao(header) {
+  const acordeao = header.closest(".acordeao");
+  acordeao.classList.toggle("aberto");
+}
+
+function filtrarItens(tipo) {
+  // Atualiza botões
+  document.querySelectorAll(".btn-filtro").forEach(b => {
+    b.className = "btn-filtro";
+  });
+  const mapa = {todos:"ativo", nc:"ativo-nc", sugestao:"ativo-par", ok:"ativo-ok"};
+  const btn = document.getElementById("f-"+tipo);
+  if (btn) btn.classList.add(mapa[tipo] || "ativo");
+
+  // Mostra/oculta itens
+  document.querySelectorAll(".item-card").forEach(card => {
+    const t = card.dataset.tipo;
+    card.style.display = (tipo === "todos" || t === tipo) ? "" : "none";
+  });
+
+  // Recolhe acordeões vazios e abre os com itens visíveis
+  document.querySelectorAll(".acordeao").forEach(ac => {
+    const visiveis = [...ac.querySelectorAll(".item-card")].filter(c => c.style.display !== "none");
+    ac.style.display = visiveis.length > 0 ? "" : "none";
+    if (visiveis.length > 0 && tipo !== "todos") ac.classList.add("aberto");
+  });
+}
+
+function copiarTexto(btn, encodedText) {
+  const txt = decodeURIComponent(encodedText);
+  navigator.clipboard.writeText(txt).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = "Copiado!";
+    btn.style.color = "var(--verde)";
+    setTimeout(() => { btn.textContent = orig; btn.style.color = ""; }, 2000);
+  });
+}
+
+function copiar() {
+  const txt = document.getElementById("parecer-txt")?.innerText;
+  if (txt) navigator.clipboard.writeText(txt).then(() => {
+    const b = document.querySelector(".btn-copiar");
+    b.textContent = "Copiado!";
+    setTimeout(() => { b.innerHTML = `<svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Copiar parecer`; }, 2000);
+  });
+}
+
+function mostrarErro(msg) {
+  const el = document.getElementById("erro");
+  el.textContent = msg; mostrar("erro");
+}
+function mostrar(id)  { document.getElementById(id).style.display = "block"; }
+function esconder(id) { document.getElementById(id).style.display = "none"; }
+
+document.getElementById("input-id").addEventListener("keydown", e => { if(e.key==="Enter") solicitar(); });
+</script>
 </body>
 </html>

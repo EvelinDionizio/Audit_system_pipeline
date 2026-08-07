@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login — Bernhoeft</title>
+<style>
+:root {
+  --azul:    #1a3a6b;
+  --azul-md: #2d5aa0;
+  --azul-lt: #e8eef8;
+  --verde:   #059669;
+  --vermelho:#dc2626;
+  --cinza:   #6b7280;
+  --borda:   #e5e7eb;
+  --texto:   #111827;
+  --branco:  #ffffff;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: linear-gradient(135deg, #1a3a6b 0%, #2d5aa0 100%);
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.login-card {
+  background: var(--branco);
+  border-radius: 16px;
+  padding: 40px 36px;
+  width: 100%; max-width: 400px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.25);
+}
+.logo {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 28px; justify-content: center;
+}
+.logo-icon {
+  width: 42px; height: 42px; background: var(--azul);
+  border-radius: 10px; display: flex; align-items: center; justify-content: center;
+}
+.logo-texto { font-size: 18px; font-weight: 700; color: var(--azul); }
+.logo-sub   { font-size: 12px; color: var(--cinza); margin-top: 2px; }
+
+h1 { font-size: 20px; font-weight: 700; color: var(--azul); margin-bottom: 6px; }
+.subtitulo { font-size: 13px; color: var(--cinza); margin-bottom: 28px; }
+
+.campo { margin-bottom: 16px; }
+label  { display: block; font-size: 12px; font-weight: 600; color: var(--texto); margin-bottom: 5px; }
+input  {
+  width: 100%; border: 1.5px solid var(--borda); border-radius: 8px;
+  padding: 11px 14px; font-size: 14px; color: var(--texto); outline: none;
+  transition: border-color .2s;
+}
+input:focus { border-color: var(--azul-md); }
+
+.btn-login {
+  width: 100%; background: var(--azul); color: white;
+  border: none; border-radius: 8px; padding: 13px;
+  font-size: 15px; font-weight: 600; cursor: pointer;
+  margin-top: 8px; transition: background .15s;
+}
+.btn-login:hover    { background: var(--azul-md); }
+.btn-login:disabled { background: var(--borda); color: var(--cinza); cursor: not-allowed; }
+
+.erro {
+  display: none; background: #fef2f2; border: 1px solid #fecaca;
+  border-radius: 8px; padding: 11px 14px; color: var(--vermelho);
+  font-size: 13px; margin-bottom: 16px;
+}
+
+</style>
+</head>
+<body>
+<div class="login-card">
+  <div class="logo">
+    <div class="logo-icon">
+      <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-texto">Bernhoeft</div>
+      <div class="logo-sub">Sistema de Auditoria</div>
+    </div>
+  </div>
+
+  <h1>Entrar na plataforma</h1>
+  <p class="subtitulo">Use suas credenciais para acessar.</p>
+
+  <div class="erro" id="erro"></div>
+
+  <div class="campo">
+    <label>E-mail</label>
+    <input type="email" id="email" placeholder="seu@email.com" autocomplete="email"/>
+  </div>
+  <div class="campo">
+    <label>Senha</label>
+    <input type="password" id="senha" placeholder="••••••••" autocomplete="current-password"/>
+  </div>
+
+  <button class="btn-login" id="btn" onclick="entrar()">Entrar</button>
+  <div style="text-align:center;margin-top:14px">
+    <a href="#" onclick="mostrarRecuperacao();return false" style="font-size:13px;color:var(--cinza);text-decoration:none">
+      Esqueceu a senha?
+    </a>
+  </div>
+
+  <div id="bloco-recuperacao" style="display:none;margin-top:16px;padding:14px;background:var(--azul-lt);border-radius:8px">
+    <div style="font-size:13px;color:var(--azul);font-weight:600;margin-bottom:8px">Recuperar senha</div>
+    <div style="font-size:12px;color:var(--cinza);margin-bottom:10px;line-height:1.5">
+      Entre em contato com o administrador do sistema para redefinir sua senha.<br>
+      E-mail: <strong>admin@bernhoeft.com.br</strong>
+    </div>
+    <button onclick="document.getElementById('bloco-recuperacao').style.display='none'"
+      style="font-size:12px;padding:5px 12px;border-radius:6px;border:1px solid var(--borda);background:white;cursor:pointer;color:var(--cinza)">
+      Fechar
+    </button>
+  </div>
+
+
+</div>
+
+<script>
+async function entrar() {
+  const email = document.getElementById("email").value.trim();
+  const senha = document.getElementById("senha").value;
+  if (!email || !senha) return mostrarErro("Preencha e-mail e senha.");
+
+  document.getElementById("btn").disabled = true;
+  document.getElementById("btn").textContent = "Entrando…";
+
+  try {
+    const res  = await fetch("/api/login", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({email, senha}), credentials: "include"
+    });
+    const data = await res.json();
+    if (!res.ok) return mostrarErro(data.detail || "Erro ao entrar.");
+
+    localStorage.setItem("token",  data.token);
+    localStorage.setItem("perfil", data.perfil);
+    localStorage.setItem("nome",   data.nome);
+
+    window.location.href = data.perfil === "analista" ? "/analista" : "/";
+  } catch(e) {
+    mostrarErro("Não foi possível conectar ao servidor.");
+  } finally {
+    document.getElementById("btn").disabled = false;
+    document.getElementById("btn").textContent = "Entrar";
+  }
+}
+
+function mostrarErro(msg) {
+  const el = document.getElementById("erro");
+  el.textContent = msg; el.style.display = "block";
+}
+
+document.addEventListener("keydown", e => { if(e.key==="Enter") entrar(); });
+
+function mostrarRecuperacao() {
+  document.getElementById("bloco-recuperacao").style.display = "block";
+}
+</script>
+</body>
+</html>
