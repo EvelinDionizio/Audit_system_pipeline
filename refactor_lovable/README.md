@@ -320,3 +320,37 @@ Lovable Cloud. O controle de quem pode usar o sistema continua no banco
 - Auditorias processadas antes desta versão não têm payload e ficam de fora
   da planilha (o painel avisa); basta revisá-las de novo.
 - Código ainda não compilado: validar com o build do Lovable.
+
+## Build local (fora do Lovable)
+
+O projeto compila e roda localmente com o bun. Os arquivos que o template
+do Lovable traria (`package.json`, `vite.config.ts`, `tsconfig.json`,
+`router.tsx`, componentes shadcn, client e tipos do Supabase) estão nesta
+pasta.
+
+```bash
+bun install
+bun run typecheck   # tsc --noEmit, modo strict da especificação
+bun run build       # vite build (cliente + servidor)
+bun run dev         # http://localhost:3000
+```
+
+- `src/integrations/supabase/types.ts` foi escrito a partir das migrations.
+  No Lovable Cloud (ou com `supabase gen types`) ele é gerado do banco real;
+  substitua quando houver um banco.
+- Sem `.env`, o app abre e a tela de login renderiza, mas login e dados
+  exigem um projeto Supabase. Copie `.env.example` para `.env` e preencha.
+- Versões fixadas: Vite 7 (especificação) e `@vitejs/plugin-react` 5 (a 6
+  exige Vite 8).
+- O TanStack Start atual marca `inputValidator()` como obsoleto em favor de
+  `validator()`. Mantido `inputValidator`, que é o padrão da especificação e
+  do template do Lovable; trocar se o template já usar `validator`.
+
+### Verificado em 2026-10-05
+
+- `bun run typecheck` e `bun run build` sem erros.
+- `bun run dev`: `/` e `/analista` sem sessão redirecionam para `/auth`
+  guardando o destino; a tela de login renderiza com os tokens de design; uma
+  rota inexistente mostra "Página não encontrada".
+- Não testado (precisa de Supabase + Entra ID): login, painel com dados,
+  revisão com IA, upload de normas e exportação Excel.
