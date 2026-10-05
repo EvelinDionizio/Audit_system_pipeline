@@ -70,7 +70,9 @@ function PaginaAlterarSenha() {
   const troca = useMutation({
     mutationFn: (dados: Formulario) => alterarMinhaSenha({ data: { atual: dados.atual, nova: dados.nova } }),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: meQueryKey });
+      // removeQueries, e não invalidate: sem observador ativo o invalidate não refaz a busca, e o layout
+      // protegido leria o "me" antigo (ainda com senha provisória) e mandaria a pessoa de volta para cá.
+      queryClient.removeQueries({ queryKey: meQueryKey });
       toast.success("Senha alterada.");
       await navigate({ to: "/" });
     },
