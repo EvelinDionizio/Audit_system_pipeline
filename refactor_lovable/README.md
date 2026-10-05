@@ -12,7 +12,7 @@ desta pasta espelha a raiz do projeto no Lovable: o conteúdo de `supabase/` e
 | 1. Banco (migrations) | ✅ pronta |
 | 2. Login (Microsoft Entra ID) | ✅ pronta |
 | 3a. Parecer com Claude + RAG das normas | ✅ pronta |
-| 3b. Integração Checklist Fácil (+ server function de revisão) | ⏳ aguardando definição da API |
+| 3b. Integração Checklist Fácil | ✅ pronta (falta validar com o token real) |
 | 5. Telas | ✅ pronta |
 | 6. Exportação Excel | ✅ pronta |
 
@@ -446,80 +446,44 @@ vão junto. Baixe um de tempos em tempos para fora dele.
 - Rotas sem token, ou com o token errado, respondem 401.
 - `bun run typecheck` e o build com o preset da Vercel sem erros.
 
-## Acesso de auditores externos (e-mail e senha)
-
-Colaboradores continuam entrando pela Microsoft. Auditores externos (e-mail
-pessoal) entram com **e-mail e senha** criados por um analista: acesso nominal,
-sem cadastro público, sempre com perfil de auditor.
-
-### Como funciona
-
-1. O analista abre **Painel > Usuários > Novo acesso externo** (nome e e-mail).
-2. O sistema gera uma **senha temporária** (12 caracteres) e a mostra **uma única
-   vez**. O analista a repassa por um canal seguro. Não depende de envio de e-mail.
-3. No primeiro acesso, o externo é levado a `/alterar-senha` e **não usa nenhuma
-   outra tela nem função do servidor** até trocar a senha (o bloqueio vale no
-   servidor, em `authMiddleware`).
-4. Esqueceu a senha: o analista usa **Redefinir senha** e repassa a nova temporária.
-
-Política de senha (aplicada no navegador e no servidor, em `src/lib/senha.ts`):
-mínimo de 8 caracteres, uma letra minúscula, uma maiúscula e um número. A troca
-exige a senha atual e a nova precisa ser diferente.
-
-### Arquivos
+## Parte 3b — Integração com o Checklist Fácil
 
 | Arquivo | Papel |
 |---|---|
-| `supabase/migrations/20261006100000_acesso_externo.sql` | `tipo_acesso`, `senha_alterada_em`, `deve_trocar_senha`; externo só auditor; trigger de troca de senha |
-| `src/lib/senha.ts` | Política de senha e gerador de senha temporária |
-| `src/lib/acesso-externo.server.ts` / `.functions.ts` | Criar acesso, redefinir senha, trocar a própria senha |
-| `src/lib/auth-senha.ts` | Login por e-mail e senha no navegador |
-| `src/lib/auth-middleware.ts` | `authBasicoMiddleware` e `authMiddleware` (bloqueia senha provisória) |
-| `src/routes/alterar-senha.tsx` | Tela de troca de senha |
-| `src/routes/auth.tsx`, `_authenticated/route.tsx` | Login com os dois métodos; redirecionamento para a troca |
-| `src/components/analista/aba-usuarios.tsx`, `app-header.tsx`, `botao-sair.tsx` | Gestão no painel, botão Trocar senha |
+| `src/lib/checklist-facil.server.ts` | Busca `v2/evaluations/{id}` na API de Integração e estrutura categorias → itens → resposta/comentário |
 
-### Para aplicar (nesta ordem)
+### Do Python para o novo código
 
-1. **Banco primeiro:** rodar a migration no banco. O código novo lê as colunas
-   novas; publicado antes da migration, o login quebra para todos.
-2. **Auth do Supabase:** ativar o provedor **E-mail** e **desligar o cadastro
-   público** ("Allow new users to sign up"). O sistema só cria contas pelo
-   servidor, com a chave de serviço.
-3. **Código:** copiar os arquivos acima (inteiros). **Não copiar** os que o
-   Lovable gera e mantém: `integrations/supabase/types.ts` (é regenerado depois
-   da migration), `lib/auth-client.ts`, `lib/supabase-admin.server.ts`,
-   `routeTree.gen.ts`, `start.ts`, `router.tsx`.
-4. Secrets: nenhum novo (usa `SUPABASE_SERVICE_ROLE_KEY`, já necessário).
+| Python | Destino |
+|---|---|
+| `api/client.py` (`get`, headers, URLs do `.env`) | `fetch` com Bearer e timeout de 30 s |
+| `polling_service.fetch_and_structure` | `buscarAuditoriaEstruturada` (mensagens de erro amigáveis) |
+| `enrichment_service.extract_audit_payload` | `estruturarAvaliacao` |
 
-### Atenção
+As regras de conformidade (notas 1-6, palavras-chave de texto livre), os
+pesos (Mandatório 3, Importantes 2, Desejáveis 1), o score ponderado e os
+níveis (90/75/60) são as mesmas. Conferido item a item contra o código
+Python com os mesmos dados: resultado idêntico (exceto a correção das palavras curtas, abaixo).
 
-- O workspace do Lovable pode ter uma regra que **proíbe e-mail e senha**.
-  Se o provedor E-mail não puder ser ativado, este fluxo não funciona.
-- Remover o pré-cadastro de um externo não está disponível no painel; para cortar
-  o acesso use **Desativar**.
-- O externo não aparece como "Não autorizado" ao ser desativado: ele entra e vê
-  "Acesso pendente".
+### Secrets
 
-### Pendente (próximos passos)
+- `CHECKLIST_FACIL_API_TOKEN`
+- `CHECKLIST_FACIL_INTEGRATION_URL` (`https://integration.checklistfacil.com.br`)
 
-- **MFA** para externos (TOTP por aplicativo autenticador).
-- **Expiração da senha a cada 90 dias** (`senha_alterada_em` já é gravada).
+### Diferenças em relação ao Python
 
-### Verificado em 2026-10-06
+- Um 404 da API agora diz "avaliação não encontrada". No Python virava
+  `{"data": []}` e a mensagem acabava sendo "não possui itens respondidos".
+- Sem os secrets, a mensagem diz quais definir.
 
-Teste ponta a ponta no navegador, com Supabase simulado (cria conta, login por
-senha e troca de senha, incluindo o efeito dos triggers):
+### Pendências e pontos de atenção
 
-- Analista cria o acesso; a senha temporária aparece uma vez; o externo aparece
-  como "Externo / Senha provisória".
-- Login com senha errada é recusado ("E-mail ou senha incorretos."); e-mail com
-  maiúsculas é normalizado.
-- Com a senha provisória, o externo é levado a `/alterar-senha` e o **servidor
-  barra** revisão, painel e criação de contas, mesmo chamadas diretamente.
-- Política de senha: 7 caracteres, sem minúscula, sem maiúscula, sem número, igual
-  à atual e senha atual errada são todas recusadas no servidor.
-- Troca válida leva à tela de revisão; o externo revisa, mas é barrado no painel
-  e nas funções de analista.
-- Redefinir senha invalida a senha anterior e exige nova troca.
-- Não testado: o Supabase real (provedor E-mail, e-mails, limites de tentativa).
+- **Validar com o token real.** Em agosto, `v2/evaluations` na API de
+  Integração respondia 404 para todas as avaliações (a listagem da API de
+  Analytics funcionava). Se isso persistir, a revisão mostra "não
+  encontrada"; nesse caso é preciso confirmar com a Checklist Fácil qual
+  endpoint devolve o detalhe e o formato do JSON.
+- **Corrigido em relação ao Python:** em respostas de texto livre sem nota, as palavras curtas (`nc`, `ok`, `sim`) agora valem só como palavra inteira. No Python eram busca de trecho, e `nc` marcava como não conforme qualquer texto que contivesse essas letras (ex.: `Financeiro`, `concluído`). As palavras longas seguem como no Python.
+- Fora desta parte: botão "Processar pendentes" (lote, usa a API de
+  Analytics) e aplicação das regras de `config_itens` na revisão (o Python
+  também não as aplicava na revisão).
