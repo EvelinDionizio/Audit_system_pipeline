@@ -11,8 +11,8 @@ desta pasta espelha a raiz do projeto no Lovable: o conteúdo de `supabase/` e
 |---|---|
 | 1. Banco (migrations) | ✅ pronta |
 | 2. Login (Microsoft Entra ID) | ✅ pronta |
-| 3. Integrações (Checklist Fácil + parecer Claude) | ⏳ |
-| 4. RAG das normas | ⏳ |
+| 3a. Parecer com Claude + RAG das normas | ✅ pronta |
+| 3b. Integração Checklist Fácil (+ server function de revisão) | ⏳ aguardando definição da API |
 | 5. Telas | ⏳ |
 | 6. Exportação Excel | ⏳ |
 
@@ -144,3 +144,72 @@ Lovable Cloud. O controle de quem pode usar o sistema continua no banco
   `/analista`: entram na Parte 5 (telas).
 - O código ainda não foi compilado: não há Node/bun nesta máquina. Validar
   com o build do Lovable ao importar.
+
+## Parte 3a — Parecer com Claude + RAG das normas
+
+| Arquivo | Papel |
+|---|---|
+| `supabase/migrations/…140000_normas_rag.sql` | `normas_chunks` (full-text em português), `buscar_normas()`, `listar_normas()`, bucket privado `normas` |
+| `src/lib/normas.server.ts` | Extração de PDF (`unpdf`), chunking, indexação, remoção e busca |
+| `src/lib/normas.functions.ts` | Server functions do analista: `listarNormas`, `indexarNorma`, `removerNorma` |
+| `src/lib/claude.server.ts` | Config, chamada ao Claude, custo por modelo, registro em `uso_tokens`, paralelismo limitado |
+| `src/lib/parecer.server.ts` | `gerarParecer()`: pareceres por item + parecer geral |
+| `src/lib/supabase-admin.server.ts` | Client service_role (só servidor) |
+
+### Do Python para o novo código
+
+| Python | Destino |
+|---|---|
+| `rag_service.py` (ChromaDB + TF-IDF/SVD) | Full-text search do Postgres (`buscar_normas`) |
+| `pdf_extractor.py` (pdfplumber/pypdf) | `unpdf` (JS puro, roda no runtime edge) |
+| `index_norms.py` (script local) | Upload no bucket `normas` + server function `indexarNorma` |
+| `get_collection_stats`, `delete_source` | `listarNormas`, `removerNorma` |
+| `gerar_parecer` | `gerarParecer` |
+| `_extrair_recomendacao`, `_extrair_constatacao`, `_extrair_texto_campo` | Removidos: structured outputs entregam cada seção num campo |
+| `registrar_uso_tokens` | `registrarUso` |
+
+### Decisões e mudanças de comportamento
+
+- **Busca nas normas por full-text em português.** O Python usava TF-IDF
+  por padrão, que também é lexical; os termos do item são combinados com OU
+  e ordenados por relevância. Sem embeddings, sem secret novo.
+- **Respostas em JSON (structured outputs).** O Claude devolve
+  `constatacao`, `fundamentacao`, `recomendacao`, `texto_campo`,
+  `criticidade` e `justificativa_criticidade`, validados por schema. Acaba a
+  extração por texto, que falhava quando o modelo variava a formatação.
+- **Modelo padrão `claude-opus-5-5`** (antes `claude-sonnet-4-6`),
+  configurável por `MODELO_CLAUDE`. Esforço `medium` por padrão
+  (`PARECER_ESFORCO`).
+- **Fallback em recusa:** nos modelos que aceitam, uma recusa do modelo é
+  refeita automaticamente pela Anthropic em outro modelo
+  (`fallbacks: "default"`).
+- **Pareceres em paralelo** (até `PARECER_CONCORRENCIA`, padrão 4); no
+  Python eram em sequência. Falha num item não derruba os outros: o item
+  volta com `erro` preenchido.
+- **Custo** calculado pelo modelo que de fato respondeu, incluindo cache.
+- **Itens só com erro de digitação** são enviados ao modelo como "Conforme
+  (revisão do texto registrado)"; no Python saíam como "Parcialmente Conforme".
+- `MAX_TOKENS_PARECER` saiu: 600 tokens cortariam a resposta, já que o
+  raciocínio do modelo conta nesse limite.
+- O system prompt é curto demais para o cache de prompt valer (há um
+  tamanho mínimo); o marcador de cache fica para quando ele crescer.
+
+### Secrets e dependências
+
+- Secrets obrigatórios: `ANTHROPIC_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
+- Opcionais (têm padrão): `MODELO_CLAUDE`, `PARECER_ESFORCO`,
+  `PARECER_MOCK`, `PARECER_CONCORRENCIA`, `RAG_TOP_K`.
+- Dependências: `@anthropic-ai/sdk`, `unpdf`.
+
+### Pendências desta parte
+
+- `gerarParecer` ainda não tem server function própria: ela entra na Parte
+  3b, junto com a busca da auditoria no Checklist Fácil.
+- `registrar_auditoria()` calcula `tipo` sem considerar erro de digitação,
+  enquanto `obrigatorio` considera (divergência herdada do Python). Alinhar
+  na Parte 3b.
+- Indexar as 55 normas da pasta `norms/`: upload no bucket e chamada de
+  `indexarNorma` (a tela entra na Parte 5). PDFs grandes (~3 MB) podem
+  esbarrar no limite de CPU do runtime edge: validar na prática.
+- PDFs escaneados (imagem) não têm texto extraível; a indexação avisa.
+- Código ainda não compilado: validar com o build do Lovable.
