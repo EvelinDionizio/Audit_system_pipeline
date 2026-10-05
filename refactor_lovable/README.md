@@ -26,6 +26,7 @@ Migrations em `supabase/migrations/`, aplicar em ordem:
 | `…120100_auditorias.sql` | `auditorias`, `reprocessamentos`, `sugestoes`, `registrar_auditoria()` |
 | `…120200_config_itens_e_uso_tokens.sql` | `config_itens`, `uso_tokens` |
 | `…120300_relatorios.sql` | `score_auditores()`, `resumo_uso_tokens()`, `uso_tokens_por_dia()`, `listar_inativos()` |
+| `…130000_sugestoes_versionadas.sql` | Sugestões substituídas a cada reprocessamento, com histórico preservado |
 
 ### De `src/database.py` para o banco novo
 
@@ -60,9 +61,12 @@ Migrations em `supabase/migrations/`, aplicar em ordem:
   multiplicava `total_nc` e distorcia a média; agora as sugestões são
   agregadas por auditoria antes.
 - **Uso de tokens por dia** agrupa pelo dia de Brasília (antes, UTC).
-- **Mantido igual ao Python, mas vale revisar:** reprocessar uma auditoria
-  acrescenta um novo lote de sugestões sem apagar o anterior, o que pode
-  duplicar contagens no score.
+- **Reprocessar substitui as sugestões.** No Python, cada reprocessamento
+  acrescentava um lote novo e inflava o score. Agora o lote novo é o vigente
+  (`substituida_em is null`) e o anterior fica como histórico, ligado ao
+  snapshot em `reprocessamentos` via `reprocessamento_id`. O score e o
+  feedback consideram só as vigentes; no app, filtrar
+  `.is('substituida_em', null)` para listar as atuais.
 
 ### Fora desta parte
 
