@@ -1,7 +1,9 @@
 import { Link, useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { BotaoSair } from "@/components/botao-sair";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { MODO_DEMO } from "@/lib/auth-client";
 
 /** Cabeçalho azul das páginas autenticadas (revisão e painel). */
 export function AppHeader({ titulo, children }: { titulo: string; children?: ReactNode }) {
@@ -12,6 +14,7 @@ export function AppHeader({ titulo, children }: { titulo: string; children?: Rea
       <div className="flex items-center gap-2.5">
         <Logo />
         <span className="text-[15px] font-semibold text-header-foreground">{titulo}</span>
+        {MODO_DEMO && <Badge variant="warning">Demonstração</Badge>}
       </div>
       <nav className="flex items-center gap-1">
         <span className="mr-2 text-xs text-header-foreground/60 max-sm:hidden">{me.nome}</span>

@@ -1,3 +1,5 @@
+import { avaliacaoBrutaDeExemplo } from "@/lib/demo/auditorias-exemplo.server";
+import { modoDemo } from "@/lib/demo/modo.server";
 import type { ItemAuditoria } from "@/lib/parecer.server";
 
 /**
@@ -248,6 +250,9 @@ export function estruturarAvaliacao(bruto: unknown): AuditoriaChecklistFacil {
 export async function buscarAuditoriaEstruturada(
   evaluationId: number,
 ): Promise<AuditoriaChecklistFacil> {
+  // Modo demonstração: auditorias fictícias no lugar do Checklist Fácil.
+  if (modoDemo()) return estruturarAvaliacao(avaliacaoBrutaDeExemplo(evaluationId));
+
   const base = process.env["CHECKLIST_FACIL_INTEGRATION_URL"]?.replace(/\/+$/, "");
   const token = process.env["CHECKLIST_FACIL_API_TOKEN"];
   if (!base || !token) {
