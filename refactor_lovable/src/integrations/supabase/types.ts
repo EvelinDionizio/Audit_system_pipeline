@@ -323,6 +323,14 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      backup_exportar: {
+        Args: never;
+        Returns: Json;
+      };
+      backup_restaurar: {
+        Args: { dados: Json };
+        Returns: Json;
+      };
       has_role: {
         Args: { _user_id: string; _role: AppRole };
         Returns: boolean;
