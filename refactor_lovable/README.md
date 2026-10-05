@@ -13,7 +13,7 @@ desta pasta espelha a raiz do projeto no Lovable: o conteúdo de `supabase/` e
 | 2. Login (Microsoft Entra ID) | ✅ pronta |
 | 3a. Parecer com Claude + RAG das normas | ✅ pronta |
 | 3b. Integração Checklist Fácil (+ server function de revisão) | ⏳ aguardando definição da API |
-| 5. Telas | ⏳ |
+| 5. Telas | ✅ pronta |
 | 6. Exportação Excel | ⏳ |
 
 ## Parte 1 — Banco
@@ -212,4 +212,70 @@ Lovable Cloud. O controle de quem pode usar o sistema continua no banco
   `indexarNorma` (a tela entra na Parte 5). PDFs grandes (~3 MB) podem
   esbarrar no limite de CPU do runtime edge: validar na prática.
 - PDFs escaneados (imagem) não têm texto extraível; a indexação avisa.
+- Código ainda não compilado: validar com o build do Lovable.
+
+## Parte 5 — Telas
+
+| Arquivo | Papel |
+|---|---|
+| `src/styles.css` | Tokens de design: paleta das páginas originais em oklch + tokens de status (`success`, `warning`, `destructive-soft`, `info`…) |
+| `src/routes/__root.tsx` | Shell HTML, fonte Inter, `AuthListener`, `Toaster` |
+| `src/components/ui/button.tsx`, `badge.tsx` | shadcn com variantes do sistema (`success`, `warning`, `header`; badges de status) |
+| `src/components/app-header.tsx`, `estado.tsx`, `score-badge.tsx` | Cabeçalho azul, estados de carregando/vazio, badge de score |
+| `src/routes/_authenticated/index.tsx` | Revisão (`/`, substitui `static/index.html`) |
+| `src/components/revisao/*` | Resultado por categoria, filtros, card do item, feedback |
+| `src/lib/revisao.server.ts`, `revisao.functions.ts` | `revisarAuditoria` (busca → parecer → `registrar_auditoria`) e `registrarFeedback` |
+| `src/lib/checklist-facil.server.ts` | Ponto único da busca no Checklist Fácil: **pendente (Parte 3b)** |
+| `src/routes/_authenticated/analista/index.tsx` | Painel do Analista (`/analista`, substitui `static/analista.html`) |
+| `src/components/analista/*` | Abas Auditorias, Indicadores, Usuários, Configurações (regras + normas) e Tokens |
+| `src/lib/analista.server.ts`, `analista.functions.ts` | Dados do painel; `analistaMiddleware` exige analista |
+
+### De `static/*.html` e `review_api.py` para as telas
+
+| Antes | Agora |
+|---|---|
+| `static/login.html` | `/auth` (Parte 2) |
+| `static/index.html` | `/` |
+| `static/analista.html` | `/analista` (aba atual na URL: `?aba=usuarios`) |
+| `POST /api/revisar`, `POST /api/feedback` | `revisarAuditoria`, `registrarFeedback` |
+| `GET /api/auditorias`, `/api/historico`, `/api/reprocessamentos/{id}` | `listarAuditorias`, `historicoReprocessamentos` |
+| `GET /api/score-auditores`, `/api/uso-tokens` | `scoreAuditores`, `usoTokens` |
+| `/api/usuarios*` | `listarUsuarios`, `autorizarUsuario`, `definirAtivo`, `removerAutorizacao`, `listarInativos` |
+| `/api/config-itens` | `listarConfigItens`, `salvarConfigItem` |
+
+### Mudanças de comportamento
+
+- **Feedback nas sugestões:** cada sugestão tem "Aceitar / Ignorar", que
+  alimenta as colunas de aceitação da aba Indicadores (no HTML atual não
+  havia botão, então essas métricas ficavam zeradas).
+- **Fundamentação normativa** aparece no card do item (o campo vem separado
+  do parecer agora).
+- **Usuários:** "Novo usuário com senha" virou "Autorizar usuário" (e-mail
+  Microsoft + perfil). Status novos: "Aguardando 1º acesso" e
+  "Não autorizado". "Excluir" virou "Remover acesso".
+- **Normas:** a aba Configurações ganhou envio de PDFs, indexação e remoção
+  (antes era o script `index_norms.py`).
+- A aba aberta fica na URL, então recarregar a página mantém a aba.
+
+### Ao importar no Lovable
+
+- **Apagar `src/routes/index.tsx` do template**: a rota `/` agora é
+  `src/routes/_authenticated/index.tsx` e as duas conflitam.
+- `__root.tsx`, `styles.css`, `button.tsx` e `badge.tsx` substituem os do
+  template; mesclar se o template tiver algo a mais.
+- Componentes shadcn usados (além de button/badge): `card`, `input`,
+  `label`, `dialog`, `alert-dialog`, `tabs`, `sonner`.
+- Dependências: `react-hook-form`, `@hookform/resolvers`, `tw-animate-css`.
+
+### Pendências desta parte
+
+- **Parte 3b:** busca no Checklist Fácil (hoje a revisão para com uma
+  mensagem clara), botão "Processar pendentes" (lote), aplicação das regras
+  de itens na revisão (desabilitar item, tipo obrigatório/sugestão,
+  "exige imagem" sem anexo) e alinhamento de `tipo` × `obrigatorio`.
+- **Parte 6:** botão "Exportar Excel" na aba Auditorias.
+- Revisões longas (muitos itens) podem esbarrar no tempo máximo de uma
+  requisição no runtime edge: validar na prática.
+- Nomes de PDF com acentos podem ser recusados pelo Storage; renomear antes
+  do envio se acontecer.
 - Código ainda não compilado: validar com o build do Lovable.
