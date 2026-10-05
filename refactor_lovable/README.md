@@ -466,3 +466,23 @@ curl -X POST https://<app>/api/public/seed \
 O seed não cria conta nem senha: a pessoa entra em `/auth` com a conta
 Microsoft daquele e-mail e já cai como analista. Se ela já tinha entrado antes
 (perfil inativo), o papel é aplicado na hora. Verificado no Supabase local.
+
+## Ambiente local (Docker) + ngrok
+
+```bash
+npm run local          # Supabase no Docker + app em http://localhost:3000
+ngrok http 3000        # em outro terminal, para expor
+npm run local:parar    # desliga o Supabase (os dados ficam no volume do Docker)
+```
+
+- Na primeira vez baixa as imagens do Supabase e aplica as migrations.
+  Banco local: Studio em http://localhost:54323.
+- Usuários de teste (criados no primeiro `npm run local`):
+  `analista@teste.local` e `auditor@teste.local`, senha `Teste@12345`.
+- O login por e-mail/senha só aparece com `VITE_LOGIN_TESTE=true`, que só
+  o `scripts/local.sh` define. Em produção a tela continua só com Microsoft.
+- O app repassa `/supabase/*` ao Supabase local (regra do nitro ligada por
+  `SUPABASE_PROXY_LOCAL`), então o túnel do ngrok serve o app e o banco.
+- A IA usa a `ANTHROPIC_API_KEY` do `.env`; as chaves do Supabase do `.env`
+  são substituídas pelas do Supabase local.
+- `supabase/config.toml` é só do ambiente local: não copie para o Lovable.

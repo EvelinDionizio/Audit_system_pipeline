@@ -1,5 +1,5 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { type FormEvent, useState } from "react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,7 +9,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { destinoSeguro, entrarComMicrosoft, obterSessao } from "@/lib/auth-client";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  destinoSeguro,
+  entrarComMicrosoft,
+  entrarComSenha,
+  loginTesteHabilitado,
+  obterSessao,
+} from "@/lib/auth-client";
 
 const searchSchema = z.object({
   redirect: z.string().optional().catch(undefined),
@@ -77,8 +85,55 @@ function PaginaLogin() {
           <p className="text-center text-xs text-muted-foreground">
             Use sua conta corporativa @bernhoeft.com.br.
           </p>
+          {loginTesteHabilitado && <LoginTeste destino={destinoSeguro(destino)} />}
         </CardContent>
       </Card>
     </main>
+  );
+}
+
+/** Só no ambiente local (VITE_LOGIN_TESTE=true): login dos usuários de teste. */
+function LoginTeste({ destino }: { destino: string }) {
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function enviar(evento: FormEvent) {
+    evento.preventDefault();
+    setEnviando(true);
+    setErro(null);
+    try {
+      await entrarComSenha(email.trim(), senha);
+      await navigate({ href: destino });
+    } catch {
+      setErro("E-mail ou senha incorretos.");
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <form onSubmit={enviar} className="space-y-3 border-t pt-4">
+      <p className="text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Ambiente local — usuário de teste
+      </p>
+      <div className="space-y-1.5">
+        <Label htmlFor="email-teste">E-mail</Label>
+        <Input id="email-teste" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="senha-teste">Senha</Label>
+        <Input id="senha-teste" type="password" autoComplete="current-password" value={senha} onChange={(e) => setSenha(e.target.value)} />
+      </div>
+      <Button type="submit" variant="outline" className="w-full" disabled={enviando || !email || !senha}>
+        {enviando ? "Entrando…" : "Entrar com usuário de teste"}
+      </Button>
+      {erro && (
+        <p role="alert" className="text-center text-sm text-destructive">
+          {erro}
+        </p>
+      )}
+    </form>
   );
 }

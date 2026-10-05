@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "vite dev --port 3000",
     "build": "vite build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "local": "bash scripts/local.sh",
+    "local:parar": "npx -y supabase@2.119.0 stop"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

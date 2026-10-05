@@ -27,6 +27,20 @@ export async function entrarComMicrosoft(destino: string): Promise<void> {
   }
 }
 
+/**
+ * Login por e-mail e senha: SÓ no ambiente local (VITE_LOGIN_TESTE=true, ver
+ * scripts/local.sh), para os usuários de teste. Em produção o provedor de
+ * e-mail fica desligado no Supabase e o formulário nem aparece.
+ */
+export const loginTesteHabilitado = import.meta.env["VITE_LOGIN_TESTE"] === "true";
+
+export async function entrarComSenha(email: string, senha: string): Promise<void> {
+  const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
+  if (error) {
+    throw error;
+  }
+}
+
 export async function sair(): Promise<void> {
   await supabase.auth.signOut();
 }
