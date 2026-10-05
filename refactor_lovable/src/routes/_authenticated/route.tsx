@@ -1,5 +1,5 @@
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
-import { obterSessao } from "@/lib/auth-client";
+import { ehErroDeSessao, obterSessao, sair } from "@/lib/auth-client";
 import { meQueryOptions } from "@/lib/auth.functions";
 
 /**
@@ -14,7 +14,15 @@ export const Route = createFileRoute("/_authenticated")({
       throw redirect({ to: "/auth", search: { redirect: location.href } });
     }
 
-    const me = await context.queryClient.ensureQueryData(meQueryOptions());
+    // A sessão pode estar no navegador mas já ter sido revogada no servidor
+    // (expirou, senha trocada, logout em outro lugar): volta para o login.
+    const me = await context.queryClient.ensureQueryData(meQueryOptions()).catch(async (e: unknown) => {
+      if (ehErroDeSessao(e)) {
+        await sair();
+        throw redirect({ to: "/auth", search: { redirect: location.href } });
+      }
+      throw e;
+    });
     if (!me.ativo || !me.papel) {
       throw redirect({ to: "/acesso-pendente" });
     }

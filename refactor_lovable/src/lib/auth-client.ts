@@ -41,6 +41,12 @@ export async function entrarComSenha(email: string, senha: string): Promise<void
   }
 }
 
+/** Erro do authMiddleware (auth-middleware.ts) quando o servidor recusa a sessão. */
+export function ehErroDeSessao(e: unknown): boolean {
+  const mensagem = e instanceof Error ? e.message : "";
+  return mensagem === "Não autenticado." || mensagem === "Sessão inválida ou expirada.";
+}
+
 export async function sair(): Promise<void> {
   await supabase.auth.signOut();
 }
