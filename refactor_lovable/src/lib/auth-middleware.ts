@@ -3,6 +3,7 @@ import { getRequestHeader } from "@tanstack/react-start/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { exigirAnalista } from "@/lib/auth.server";
 
 /**
  * Middleware de autenticação das server functions (substitui require_auth da API).
@@ -46,4 +47,12 @@ export const authMiddleware = createMiddleware({ type: "function" })
     }
 
     return next({ context: { supabase: db, userId: data.user.id } });
+  });
+
+/** authMiddleware + exige analista ativo (substitui require_analista). */
+export const analistaMiddleware = createMiddleware({ type: "function" })
+  .middleware([authMiddleware])
+  .server(async ({ next, context }) => {
+    await exigirAnalista(context.supabase, context.userId);
+    return next();
   });
