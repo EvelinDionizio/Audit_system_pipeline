@@ -35,7 +35,10 @@ create table if not exists profiles (
   email         text not null unique,
   ativo         integer not null default 0,
   criado_em     text not null default ${AGORA},
-  ultimo_acesso text
+  ultimo_acesso text,
+  tipo_acesso       text not null default 'sso' check (tipo_acesso in ('sso', 'senha')),
+  senha_alterada_em text,
+  deve_trocar_senha integer not null default 0
 );
 
 create table if not exists user_roles (
@@ -50,7 +53,8 @@ create table if not exists usuarios_autorizados (
   nome       text not null,
   perfil     text not null default 'auditor' check (perfil in ('analista', 'auditor')),
   criado_por text,
-  criado_em  text not null default ${AGORA}
+  criado_em  text not null default ${AGORA},
+  tipo_acesso text not null default 'sso' check (tipo_acesso in ('sso', 'senha'))
 );
 
 create table if not exists auditorias (
@@ -210,6 +214,24 @@ function semear(db: BancoSqlite) {
   regra.run("SEG-OBRAS", "O canteiro possui sinalização de segurança adequada? (Desejáveis)", 1, "sugestao", 0);
 }
 
+/** Bancos criados antes do acesso externo ganham as colunas novas sem precisar de demo:reset. */
+function atualizarBancoExistente(db: BancoSqlite) {
+  const colunas = (tabela: string) =>
+    new Set(db.query(`pragma table_info(${tabela})`).all().map((c) => String(c["name"])));
+
+  const perfis = colunas("profiles");
+  if (!perfis.has("tipo_acesso")) {
+    db.exec("alter table profiles add column tipo_acesso text not null default 'sso'");
+  }
+  if (!perfis.has("senha_alterada_em")) db.exec("alter table profiles add column senha_alterada_em text");
+  if (!perfis.has("deve_trocar_senha")) {
+    db.exec("alter table profiles add column deve_trocar_senha integer not null default 0");
+  }
+  if (!colunas("usuarios_autorizados").has("tipo_acesso")) {
+    db.exec("alter table usuarios_autorizados add column tipo_acesso text not null default 'sso'");
+  }
+}
+
 declare global {
   // Uma conexão por processo do servidor de desenvolvimento.
   var __bancoDemo: BancoSqlite | undefined;
@@ -231,6 +253,7 @@ export function abrirBancoDemo(): BancoSqlite {
 
   const novo = !db.query("select 1 from sqlite_master where type = 'table' and name = 'profiles'").get();
   db.exec(SCHEMA);
+  if (!novo) atualizarBancoExistente(db);
   if (novo) db.transaction(() => semear(db))();
 
   globalThis.__bancoDemo = db;

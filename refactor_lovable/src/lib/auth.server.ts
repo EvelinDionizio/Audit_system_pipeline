@@ -8,6 +8,10 @@ export type UsuarioAtual = {
   nome: string;
   email: string;
   ativo: boolean;
+  /** sso = entra pela Microsoft; senha = externo (e-mail e senha). */
+  tipo_acesso: "sso" | "senha";
+  /** Senha provisória: precisa ser trocada antes de usar o sistema. */
+  deve_trocar_senha: boolean;
   /** null = ainda não autorizado por um analista. */
   papel: Papel | null;
 };
@@ -21,7 +25,11 @@ export async function getUsuarioAtual(
   userId: string,
 ): Promise<UsuarioAtual> {
   const [perfil, papeis] = await Promise.all([
-    db.from("profiles").select("id, nome, email, ativo").eq("id", userId).single(),
+    db
+      .from("profiles")
+      .select("id, nome, email, ativo, tipo_acesso, deve_trocar_senha")
+      .eq("id", userId)
+      .single(),
     db.from("user_roles").select("role").eq("user_id", userId),
   ]);
 

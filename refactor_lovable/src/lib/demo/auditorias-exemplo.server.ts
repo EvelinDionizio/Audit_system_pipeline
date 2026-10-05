@@ -1,8 +1,8 @@
-import type { AuditoriaChecklistFacil } from "@/lib/checklist-facil.server";
-
 /**
  * Auditorias fictícias que substituem o Checklist Fácil no modo
- * demonstração. Dados inventados, sem relação com clientes reais.
+ * demonstração. Dados inventados, sem relação com clientes reais. Ficam no
+ * formato cru da API, e quem as estrutura é o código real (checklist-facil.server),
+ * então pesos e regras de conformidade são os mesmos da produção.
  * Cobrem não conformes, parciais, conformes e comentários com erro de
  * digitação, para exercitar todas as regras do parecer.
  */
@@ -19,56 +19,49 @@ type ItemExemplo = {
 
 const CODIGO: Record<Resultado, number> = { nc: 1, parcial: 2, conforme: 3, na: 6 };
 
-function montar(
-  id: number,
-  cabecalho: Omit<AuditoriaChecklistFacil["cabecalho"], "status"> & {
-    status: number;
-    data_conclusao: string | null;
-    departamento: string[];
-  },
-  itens: ItemExemplo[],
-): AuditoriaChecklistFacil {
-  const estruturados = itens.map((item, i) => ({
-    id: id * 100 + i + 1,
-    categoria: item.categoria,
-    pergunta: item.pergunta,
-    comentario: item.comentario ?? null,
-    resposta_texto: null,
-    tipo_resposta: "avaliativo",
-    resposta_codigo: CODIGO[item.resultado],
-    nao_conforme: item.resultado === "nc",
-    parcial: item.resultado === "parcial",
-    conforme: item.resultado === "conforme",
-    nao_aplicavel: item.resultado === "na",
-    total_anexos: item.anexos ?? 0,
-  }));
+type CabecalhoExemplo = {
+  checklist_nome: string;
+  unidade_nome: string;
+  auditor_nome: string;
+  data_inicio: string;
+  data_conclusao: string | null;
+  status: number;
+  departamento: string[];
+};
 
-  // Mesma regra de _build_summary (enrichment_service.py), com peso 1.
-  const avaliados = estruturados.filter((i) => !i.nao_aplicavel);
-  const pontos = avaliados.reduce((s, i) => s + (i.conforme ? 1 : i.parcial ? 0.5 : 0), 0);
-  const percentual = avaliados.length ? Math.round((pontos / avaliados.length) * 1000) / 10 : null;
-  const nivel =
-    percentual === null ? "sem_dados"
-    : percentual >= 90 ? "excelente"
-    : percentual >= 75 ? "bom"
-    : percentual >= 60 ? "regular"
-    : "critico";
+type Bruto = Record<string, unknown>;
+
+/**
+ * Monta a resposta crua no formato da API do Checklist Fácil. Quem estrutura
+ * (pesos, conformidade, resumo) é o código real, em estruturarAvaliacao.
+ */
+function montar(id: number, cab: CabecalhoExemplo, itens: ItemExemplo[]): Bruto {
+  const categorias = new Map<string, Bruto[]>();
+  itens.forEach((item, i) => {
+    const lista = categorias.get(item.categoria) ?? [];
+    lista.push({
+      id: id * 100 + i + 1,
+      name: item.pergunta,
+      answer: { evaluative: CODIGO[item.resultado] },
+      comment: item.comentario ?? "",
+      attachments: Array.from({ length: item.anexos ?? 0 }, (_, n) => ({ id: n + 1 })),
+    });
+    categorias.set(item.categoria, lista);
+  });
 
   return {
-    cabecalho,
-    itens: estruturados,
-    resumo: {
-      total_itens_relevantes: estruturados.length,
-      total_nao_conformes: estruturados.filter((i) => i.nao_conforme).length,
-      total_parciais: estruturados.filter((i) => i.parcial).length,
-      total_conformes: estruturados.filter((i) => i.conforme).length,
-      percentual_conformidade: percentual,
-      nivel_conformidade: nivel,
-    },
+    id,
+    checklist: { name: cab.checklist_nome },
+    unit: { name: cab.unidade_nome },
+    user: { name: cab.auditor_nome },
+    departments: cab.departamento.map((name) => ({ name })),
+    status: cab.status,
+    startedAt: cab.data_inicio,
+    concludedAt: cab.data_conclusao,
+    categories: [...categorias].map(([name, items]) => ({ name, items })),
   };
 }
-
-const AUDITORIAS: Record<number, AuditoriaChecklistFacil> = {
+const AUDITORIAS: Record<number, Bruto> = {
   900000001: montar(
     900000001,
     {
@@ -139,7 +132,8 @@ const AUDITORIAS: Record<number, AuditoriaChecklistFacil> = {
 
 export const IDS_EXEMPLO = Object.keys(AUDITORIAS).map(Number);
 
-export function auditoriaDeExemplo(evaluationId: number): AuditoriaChecklistFacil {
+/** Resposta crua da API para a avaliação de exemplo (passa por estruturarAvaliacao). */
+export function avaliacaoBrutaDeExemplo(evaluationId: number): Bruto {
   const auditoria = AUDITORIAS[evaluationId];
   if (!auditoria) {
     throw new Error(

@@ -1,12 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { queryOptions } from "@tanstack/react-query";
-import { authMiddleware } from "@/lib/auth-middleware";
+import { authBasicoMiddleware } from "@/lib/auth-middleware";
 import { getUsuarioAtual } from "@/lib/auth.server";
 
 export type { Papel, UsuarioAtual } from "@/lib/auth.server";
 
+// Middleware básico: quem está com a senha provisória precisa conseguir
+// carregar o próprio perfil para ser levado à tela de troca de senha.
 export const getMe = createServerFn({ method: "GET" })
-  .middleware([authMiddleware])
+  .middleware([authBasicoMiddleware])
   .handler(async ({ context }) => getUsuarioAtual(context.supabase, context.userId));
 
 export const meQueryKey = ["me"] as const;

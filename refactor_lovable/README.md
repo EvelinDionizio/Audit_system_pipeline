@@ -12,7 +12,7 @@ desta pasta espelha a raiz do projeto no Lovable: o conteúdo de `supabase/` e
 | 1. Banco (migrations) | ✅ pronta |
 | 2. Login (Microsoft Entra ID) | ✅ pronta |
 | 3a. Parecer com Claude + RAG das normas | ✅ pronta |
-| 3b. Integração Checklist Fácil (+ server function de revisão) | ⏳ aguardando definição da API |
+| 3b. Integração Checklist Fácil | ✅ pronta (falta validar com o token real) |
 | 5. Telas | ✅ pronta |
 | 6. Exportação Excel | ✅ pronta |
 
@@ -483,7 +483,7 @@ Supabase usado pelo app; `criarClienteAdmin` usa o mesmo banco; e
 
 ### Verificado em 2026-10-05
 
-- Login como Ana Analista → revisão da #900000001 (score 55%, 3 NC, 3
+- Login como Ana Analista → revisão da #900000001 (score 50% ponderado, 3 NC, 3
   parciais, 4 conformes) → feedback "Aceitar" gravado.
 - Painel: auditoria listada, KPIs e score por auditor/checklist, Indicadores
   com 1 sugestão aceita de 10, Usuários com os 4 status, trava do último
@@ -492,3 +492,45 @@ Supabase usado pelo app; `criarClienteAdmin` usa o mesmo banco; e
   capacete recuperou a NR-06 e o do cinto, a NR-35. Reprocessamento contado.
 - Planilha gerada a partir do payload salvo, com as 3 abas (testada por
   script, sem download no navegador).
+
+## Parte 3b — Integração com o Checklist Fácil
+
+| Arquivo | Papel |
+|---|---|
+| `src/lib/checklist-facil.server.ts` | Busca `v2/evaluations/{id}` na API de Integração e estrutura categorias → itens → resposta/comentário |
+
+### Do Python para o novo código
+
+| Python | Destino |
+|---|---|
+| `api/client.py` (`get`, headers, URLs do `.env`) | `fetch` com Bearer e timeout de 30 s |
+| `polling_service.fetch_and_structure` | `buscarAuditoriaEstruturada` (mensagens de erro amigáveis) |
+| `enrichment_service.extract_audit_payload` | `estruturarAvaliacao` |
+
+As regras de conformidade (notas 1-6, palavras-chave de texto livre), os
+pesos (Mandatório 3, Importantes 2, Desejáveis 1), o score ponderado e os
+níveis (90/75/60) são as mesmas. Conferido item a item contra o código
+Python com os mesmos dados: resultado idêntico (exceto a correção das palavras curtas, abaixo).
+
+### Secrets
+
+- `CHECKLIST_FACIL_API_TOKEN`
+- `CHECKLIST_FACIL_INTEGRATION_URL` (`https://integration.checklistfacil.com.br`)
+
+### Diferenças em relação ao Python
+
+- Um 404 da API agora diz "avaliação não encontrada". No Python virava
+  `{"data": []}` e a mensagem acabava sendo "não possui itens respondidos".
+- Sem os secrets, a mensagem diz quais definir.
+
+### Pendências e pontos de atenção
+
+- **Validar com o token real.** Em agosto, `v2/evaluations` na API de
+  Integração respondia 404 para todas as avaliações (a listagem da API de
+  Analytics funcionava). Se isso persistir, a revisão mostra "não
+  encontrada"; nesse caso é preciso confirmar com a Checklist Fácil qual
+  endpoint devolve o detalhe e o formato do JSON.
+- **Corrigido em relação ao Python:** em respostas de texto livre sem nota, as palavras curtas (`nc`, `ok`, `sim`) agora valem só como palavra inteira. No Python eram busca de trecho, e `nc` marcava como não conforme qualquer texto que contivesse essas letras (ex.: `Financeiro`, `concluído`). As palavras longas seguem como no Python.
+- Fora desta parte: botão "Processar pendentes" (lote, usa a API de
+  Analytics) e aplicação das regras de `config_itens` na revisão (o Python
+  também não as aplicava na revisão).

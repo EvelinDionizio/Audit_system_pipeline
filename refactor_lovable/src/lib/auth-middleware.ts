@@ -14,9 +14,15 @@ import { PREFIXO_TOKEN_DEMO, modoDemo } from "@/lib/demo/modo.server";
  * - No servidor: valida o token e entrega em `context` um client do banco que
  *   age COMO o usuário (as policies de RLS valem) e o `userId`.
  *
+ * Dois níveis:
+ *   - authBasicoMiddleware: só exige sessão válida. Usado apenas por "quem sou
+ *     eu" e "trocar senha", que precisam funcionar mesmo com a senha provisória.
+ *   - authMiddleware: o padrão do sistema. Além da sessão, barra quem ainda
+ *     está com a senha provisória (o bloqueio vale no servidor, não só na tela).
+ *
  * Uso: createServerFn(...).middleware([authMiddleware]).handler(({ context }) => ...)
  */
-export const authMiddleware = createMiddleware({ type: "function" })
+export const authBasicoMiddleware = createMiddleware({ type: "function" })
   .client(async ({ next }) => {
     // obterSessao cobre também a sessão fictícia do modo demonstração.
     const token = (await obterSessao())?.access_token;
@@ -34,7 +40,11 @@ export const authMiddleware = createMiddleware({ type: "function" })
     if (modoDemo()) {
       if (!token.startsWith(PREFIXO_TOKEN_DEMO)) throw new Error("Sessão inválida ou expirada.");
       return next({
-        context: { supabase: criarClienteDemo(), userId: token.slice(PREFIXO_TOKEN_DEMO.length) },
+        context: {
+          supabase: criarClienteDemo(),
+          userId: token.slice(PREFIXO_TOKEN_DEMO.length),
+          deveTrocarSenha: false,
+        },
       });
     }
 
@@ -56,7 +66,31 @@ export const authMiddleware = createMiddleware({ type: "function" })
       throw new Error("Sessão inválida ou expirada.");
     }
 
-    return next({ context: { supabase: db, userId: data.user.id } });
+    const perfil = await db
+      .from("profiles")
+      .select("deve_trocar_senha")
+      .eq("id", data.user.id)
+      .maybeSingle();
+    if (perfil.error) {
+      throw new Error(`Erro ao verificar o acesso: ${perfil.error.message}`);
+    }
+
+    return next({
+      context: {
+        supabase: db,
+        userId: data.user.id,
+        deveTrocarSenha: perfil.data?.deve_trocar_senha ?? false,
+      },
+    });
+  });
+
+export const authMiddleware = createMiddleware({ type: "function" })
+  .middleware([authBasicoMiddleware])
+  .server(async ({ next, context }) => {
+    if (context.deveTrocarSenha) {
+      throw new Error("Troque a senha provisória antes de continuar.");
+    }
+    return next();
   });
 
 /** authMiddleware + exige analista ativo (substitui require_analista). */

@@ -21,7 +21,7 @@ const TABELAS = new Set([
   "sugestoes", "config_itens", "uso_tokens", "normas_chunks",
 ]);
 const BOOLEANAS: Record<string, string[]> = {
-  profiles: ["ativo"],
+  profiles: ["ativo", "deve_trocar_senha"],
   sugestoes: ["aceita"],
   config_itens: ["habilitado", "exige_imagem"],
 };
