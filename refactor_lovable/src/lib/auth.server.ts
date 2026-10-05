@@ -41,3 +41,17 @@ export async function getUsuarioAtual(
 
   return { ...perfil.data, papel };
 }
+
+/** Barra quem não é analista ativo (substitui require_analista nas server functions). */
+export async function exigirAnalista(
+  db: SupabaseClient<Database>,
+  userId: string,
+): Promise<void> {
+  const { data, error } = await db.rpc("is_analista", { _user_id: userId });
+  if (error) {
+    throw new Error(`Erro ao verificar permissão: ${error.message}`);
+  }
+  if (!data) {
+    throw new Error("Acesso restrito a analistas.");
+  }
+}
