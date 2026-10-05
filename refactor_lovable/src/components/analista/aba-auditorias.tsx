@@ -1,13 +1,15 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { RefreshCw } from "lucide-react";
+import { FileSpreadsheet, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Estado } from "@/components/estado";
 import { ScoreBadge } from "@/components/score-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { auditoriasQuery, historicoReprocessamentos } from "@/lib/analista.functions";
+import { auditoriasQuery, exportacaoAuditorias, historicoReprocessamentos } from "@/lib/analista.functions";
+import { exportarExcel } from "@/lib/exportar-excel";
 import { STATUS_LABELS, fmtDataBR, fmtDataHoraBR, normalizarNivel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { BarList, Filtros, KpiCard, KpiGrid, SecTitulo, Tabela, campoCls, textoErro } from "./ui";
@@ -33,6 +35,28 @@ export function AbaAuditorias() {
   };
   const consulta = useQuery(auditoriasQuery(filtro));
   const auditorias = consulta.data ?? [];
+
+  // Exporta as auditorias listadas (mesmos filtros da tabela).
+  const exportacao = useMutation({
+    mutationFn: async () => {
+      const ids = auditorias.map((a) => a.evaluation_id);
+      if (ids.length === 0) throw new Error("Nenhuma auditoria para exportar.");
+      const completas = await exportacaoAuditorias({ data: { evaluation_ids: ids } });
+      if (completas.length === 0) {
+        throw new Error("As auditorias listadas não têm a revisão completa salva. Revise-as de novo para exportar.");
+      }
+      await exportarExcel(completas);
+      return { exportadas: completas.length, ignoradas: ids.length - completas.length };
+    },
+    onSuccess: ({ exportadas, ignoradas }) => {
+      if (ignoradas > 0) {
+        toast.warning(`${exportadas} auditoria(s) exportada(s); ${ignoradas} sem revisão completa salva ficaram de fora.`);
+      } else {
+        toast.success(`${exportadas} auditoria(s) exportada(s).`);
+      }
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
   const stats = useMemo(() => {
     const comScore = auditorias.filter((a) => a.percentual_conformidade !== null);
@@ -97,6 +121,14 @@ export function AbaAuditorias() {
         </label>
         <Button size="sm" onClick={() => void consulta.refetch()} disabled={consulta.isFetching}>
           <RefreshCw /> Atualizar
+        </Button>
+        <Button
+          variant="success"
+          size="sm"
+          onClick={() => exportacao.mutate()}
+          disabled={exportacao.isPending || auditorias.length === 0}
+        >
+          <FileSpreadsheet /> {exportacao.isPending ? "Exportando…" : "Exportar Excel"}
         </Button>
       </Filtros>
 

@@ -5,6 +5,7 @@ import * as analista from "@/lib/analista.server";
 import { analistaMiddleware } from "@/lib/auth-middleware";
 
 export type { UsuarioPainel } from "@/lib/analista.server";
+export type { PayloadRevisao } from "@/lib/revisao.server";
 
 const papel = z.enum(["analista", "auditor"]);
 const dataIso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional();
@@ -28,6 +29,14 @@ export const auditoriasQuery = (filtro: z.infer<typeof filtroAuditorias>) =>
     queryKey: ["analista", "auditorias", filtro],
     queryFn: () => listarAuditorias({ data: filtro }),
   });
+
+/** Substitui load_payloads_from_output: revisões completas para o Excel. */
+export const exportacaoAuditorias = createServerFn({ method: "POST" })
+  .middleware([analistaMiddleware])
+  .inputValidator((d: unknown) =>
+    z.object({ evaluation_ids: z.array(z.number().int().positive()).min(1).max(100) }).parse(d),
+  )
+  .handler(({ data, context }) => analista.payloadsParaExportacao(context.supabase, data.evaluation_ids));
 
 export const historicoReprocessamentos = createServerFn({ method: "GET" })
   .middleware([analistaMiddleware])

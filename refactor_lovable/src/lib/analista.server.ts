@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import type { PayloadRevisao } from "@/lib/revisao.server";
 
 /**
  * Leituras e escritas do Painel do Analista (substitui os endpoints
@@ -72,6 +73,26 @@ export async function historicoReprocessamentos(db: Db, evaluationId: number) {
     ...r,
     usuario_nome: user_id ? (nomes.get(user_id) ?? null) : null,
   }));
+}
+
+
+/**
+ * Revisões completas para a exportação Excel (substitui
+ * load_payloads_from_output). Mantém a ordem dos ids pedidos e ignora
+ * auditorias sem payload (processadas antes desta versão).
+ */
+export async function payloadsParaExportacao(db: Db, evaluationIds: number[]) {
+  const { data, error } = await db
+    .from("auditorias")
+    .select("evaluation_id, payload")
+    .in("evaluation_id", evaluationIds);
+  falhar("Erro ao buscar as auditorias para exportação", error);
+
+  const porId = new Map(data.map((a) => [a.evaluation_id, a.payload]));
+  return evaluationIds.flatMap((id) => {
+    const payload = porId.get(id);
+    return payload ? [{ evaluation_id: id, payload: payload as unknown as PayloadRevisao }] : [];
+  });
 }
 
 
