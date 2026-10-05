@@ -19,7 +19,8 @@ export function BotaoSair({ variant = "outline" }: { variant?: "outline" | "head
   }
 
   return (
-    <Button variant={variant} size="sm" onClick={handleSair} disabled={saindo}>
+    // type="button": dentro de um formulário (ex.: troca de senha), Enter não pode acionar o Sair.
+    <Button type="button" variant={variant} size="sm" onClick={handleSair} disabled={saindo}>
       <LogOut />
       Sair
     </Button>
