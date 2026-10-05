@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { criarClienteDemo } from "@/lib/demo/cliente-demo.server";
+import { modoDemo } from "@/lib/demo/modo.server";
 
 /**
  * Client com service_role: ignora o RLS. Usar só em código de servidor e só
@@ -9,6 +11,9 @@ import type { Database } from "@/integrations/supabase/types";
  * `@/integrations/supabase/client.server`), troque as chamadas por ele.
  */
 export function criarClienteAdmin() {
+  // Modo demonstração: o "admin" é o mesmo banco SQLite local.
+  if (modoDemo()) return criarClienteDemo();
+
   const url = process.env["SUPABASE_URL"] ?? process.env["VITE_SUPABASE_URL"];
   const chave = process.env["SUPABASE_SERVICE_ROLE_KEY"];
   if (!url || !chave) {

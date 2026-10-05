@@ -1,3 +1,5 @@
+import { auditoriaDeExemplo } from "@/lib/demo/auditorias-exemplo.server";
+import { modoDemo } from "@/lib/demo/modo.server";
 import type { CabecalhoAuditoria, ItemAuditoria } from "@/lib/parecer.server";
 
 /**
@@ -30,6 +32,9 @@ export type AuditoriaChecklistFacil = {
 export async function buscarAuditoriaEstruturada(
   evaluationId: number,
 ): Promise<AuditoriaChecklistFacil> {
+  // Modo demonstração: auditorias fictícias no lugar do Checklist Fácil.
+  if (modoDemo()) return auditoriaDeExemplo(evaluationId);
+
   throw new Error(
     `A busca da avaliação #${evaluationId} no Checklist Fácil ainda não foi portada (Parte 3b).`,
   );
