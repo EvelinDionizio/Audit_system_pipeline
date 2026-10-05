@@ -127,13 +127,17 @@ export type UsuarioPainel = {
   profileId: string | null;
   ativo: boolean;
   ultimo_acesso: string | null;
+  /** sso = Microsoft; senha = externo (e-mail e senha). */
+  tipo_acesso: "sso" | "senha";
+  /** Externo que ainda não trocou a senha provisória. */
+  deve_trocar_senha: boolean;
 };
 
 /** Junta pré-cadastros (usuarios_autorizados) e quem já logou (profiles). */
 export async function listarUsuarios(db: Db): Promise<UsuarioPainel[]> {
   const [autorizados, perfis] = await Promise.all([
-    db.from("usuarios_autorizados").select("email, nome, perfil"),
-    db.from("profiles").select("id, nome, email, ativo, ultimo_acesso"),
+    db.from("usuarios_autorizados").select("email, nome, perfil, tipo_acesso"),
+    db.from("profiles").select("id, nome, email, ativo, ultimo_acesso, tipo_acesso, deve_trocar_senha"),
   ]);
   falhar("Erro ao listar autorizações", autorizados.error);
   falhar("Erro ao listar perfis", perfis.error);
@@ -149,6 +153,8 @@ export async function listarUsuarios(db: Db): Promise<UsuarioPainel[]> {
       profileId: p?.id ?? null,
       ativo: p?.ativo ?? false,
       ultimo_acesso: p?.ultimo_acesso ?? null,
+      tipo_acesso: a.tipo_acesso,
+      deve_trocar_senha: p?.deve_trocar_senha ?? false,
     };
   });
 
@@ -163,6 +169,8 @@ export async function listarUsuarios(db: Db): Promise<UsuarioPainel[]> {
         profileId: p.id,
         ativo: p.ativo,
         ultimo_acesso: p.ultimo_acesso,
+        tipo_acesso: p.tipo_acesso,
+        deve_trocar_senha: p.deve_trocar_senha,
       });
     }
   }
