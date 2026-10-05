@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import type { QueryClient } from "@tanstack/react-query";
+import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   HeadContent,
   Link,
@@ -56,12 +56,19 @@ function RootDocument({ children }: { children: ReactNode }) {
 }
 
 function RootComponent() {
+  // O router cria o QueryClient e o põe no contexto; aqui ele é ligado à árvore
+  // de componentes. Sem o provider, useQueryClient() (AuthListener, useQuery,
+  // useMutation) derruba a renderização no servidor e todas as páginas dão 500
+  // ("This page didn't load"). Fica no root, e não só no router.tsx, porque o
+  // Lovable pode substituir o router.tsx pelo do template.
+  const { queryClient } = Route.useRouteContext();
+
   return (
-    <>
+    <QueryClientProvider client={queryClient}>
       <AuthListener />
       <Outlet />
       <Toaster richColors position="top-right" />
-    </>
+    </QueryClientProvider>
   );
 }
 

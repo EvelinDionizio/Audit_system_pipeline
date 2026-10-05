@@ -1,6 +1,7 @@
-import { useRouteContext } from "@tanstack/react-router";
+import { Link, useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { BotaoSair } from "@/components/botao-sair";
+import { Button } from "@/components/ui/button";
 
 /** Cabeçalho azul das páginas autenticadas (revisão e painel). */
 export function AppHeader({ titulo, children }: { titulo: string; children?: ReactNode }) {
@@ -15,6 +16,11 @@ export function AppHeader({ titulo, children }: { titulo: string; children?: Rea
       <nav className="flex items-center gap-1">
         <span className="mr-2 text-xs text-header-foreground/60 max-sm:hidden">{me.nome}</span>
         {children}
+        {me.tipo_acesso === "senha" && (
+          <Button variant="header" size="sm" asChild>
+            <Link to="/alterar-senha">Trocar senha</Link>
+          </Button>
+        )}
         <BotaoSair variant="header" />
       </nav>
     </header>

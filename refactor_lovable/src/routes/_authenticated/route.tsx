@@ -18,6 +18,10 @@ export const Route = createFileRoute("/_authenticated")({
     if (!me.ativo || !me.papel) {
       throw redirect({ to: "/acesso-pendente" });
     }
+    // Primeiro acesso de externo (ou senha redefinida pelo analista): troca obrigatória.
+    if (me.deve_trocar_senha) {
+      throw redirect({ to: "/alterar-senha" });
+    }
 
     return { me };
   },
