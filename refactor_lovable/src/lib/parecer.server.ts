@@ -328,6 +328,29 @@ No máximo 3 parágrafos, em português formal e técnico.`;
 }
 
 /**
+ * Diagnóstico da integração com o Claude, sem banco: mesmo prompt, schema e
+ * validação do parecer de item, mas sem busca de normas e sem gravar
+ * uso_tokens. Usado só pela rota /api/public/teste-ia.
+ */
+export async function diagnosticarParecer(item: ItemAuditoria, cabecalho: CabecalhoAuditoria) {
+  const config = lerConfigClaude();
+  const inicio = Date.now();
+  const { texto, uso } = await chamarClaude(criarClienteClaude(), config, {
+    system: SYSTEM_PROMPT,
+    prompt: montarPrompt(item, cabecalho, []),
+    schema: PARECER_ITEM_JSON_SCHEMA,
+  });
+  const validado = parecerItemSchema.safeParse(JSON.parse(texto));
+  return {
+    config,
+    tempoMs: Date.now() - inicio,
+    uso,
+    formatoValido: validado.success,
+    parecer: validado.success ? validado.data : texto,
+  };
+}
+
+/**
  * Interface principal (substitui gerar_parecer). Gera os pareceres dos itens
  * não conformes, parciais ou com erro de digitação, em paralelo limitado por
  * PARECER_CONCORRENCIA, e depois o parecer geral consolidado.

@@ -18,6 +18,7 @@ import { Route as AuthenticatedAnalistaIndexRouteImport } from './routes/_authen
 import { Route as ApiPublicBackupRouteImport } from './routes/api/public/backup'
 import { Route as ApiPublicBackupsRouteImport } from './routes/api/public/backups'
 import { Route as ApiPublicRestaurarRouteImport } from './routes/api/public/restaurar'
+import { Route as ApiPublicTesteIaRouteImport } from './routes/api/public/teste-ia'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -65,6 +66,11 @@ const ApiPublicRestaurarRoute = ApiPublicRestaurarRouteImport.update({
   path: '/api/public/restaurar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicTesteIaRoute = ApiPublicTesteIaRouteImport.update({
+  id: '/api/public/teste-ia',
+  path: '/api/public/teste-ia',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -74,6 +80,7 @@ export interface FileRoutesByFullPath {
   '/api/public/backup': typeof ApiPublicBackupRoute
   '/api/public/backups': typeof ApiPublicBackupsRoute
   '/api/public/restaurar': typeof ApiPublicRestaurarRoute
+  '/api/public/teste-ia': typeof ApiPublicTesteIaRoute
   '/analista/': typeof AuthenticatedAnalistaIndexRoute
 }
 export interface FileRoutesByTo {
@@ -83,6 +90,7 @@ export interface FileRoutesByTo {
   '/api/public/backup': typeof ApiPublicBackupRoute
   '/api/public/backups': typeof ApiPublicBackupsRoute
   '/api/public/restaurar': typeof ApiPublicRestaurarRoute
+  '/api/public/teste-ia': typeof ApiPublicTesteIaRoute
   '/analista': typeof AuthenticatedAnalistaIndexRoute
 }
 export interface FileRoutesById {
@@ -95,6 +103,7 @@ export interface FileRoutesById {
   '/api/public/backup': typeof ApiPublicBackupRoute
   '/api/public/backups': typeof ApiPublicBackupsRoute
   '/api/public/restaurar': typeof ApiPublicRestaurarRoute
+  '/api/public/teste-ia': typeof ApiPublicTesteIaRoute
   '/_authenticated/analista/': typeof AuthenticatedAnalistaIndexRoute
 }
 export interface FileRouteTypes {
@@ -107,6 +116,7 @@ export interface FileRouteTypes {
     | '/api/public/backup'
     | '/api/public/backups'
     | '/api/public/restaurar'
+    | '/api/public/teste-ia'
     | '/analista/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -116,6 +126,7 @@ export interface FileRouteTypes {
     | '/api/public/backup'
     | '/api/public/backups'
     | '/api/public/restaurar'
+    | '/api/public/teste-ia'
     | '/analista'
   id:
     | '__root__'
@@ -127,6 +138,7 @@ export interface FileRouteTypes {
     | '/api/public/backup'
     | '/api/public/backups'
     | '/api/public/restaurar'
+    | '/api/public/teste-ia'
     | '/_authenticated/analista/'
   fileRoutesById: FileRoutesById
 }
@@ -137,6 +149,7 @@ export interface RootRouteChildren {
   ApiPublicBackupRoute: typeof ApiPublicBackupRoute
   ApiPublicBackupsRoute: typeof ApiPublicBackupsRoute
   ApiPublicRestaurarRoute: typeof ApiPublicRestaurarRoute
+  ApiPublicTesteIaRoute: typeof ApiPublicTesteIaRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -204,6 +217,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicRestaurarRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/teste-ia': {
+      id: '/api/public/teste-ia'
+      path: '/api/public/teste-ia'
+      fullPath: '/api/public/teste-ia'
+      preLoaderRoute: typeof ApiPublicTesteIaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -241,6 +261,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicBackupRoute: ApiPublicBackupRoute,
   ApiPublicBackupsRoute: ApiPublicBackupsRoute,
   ApiPublicRestaurarRoute: ApiPublicRestaurarRoute,
+  ApiPublicTesteIaRoute: ApiPublicTesteIaRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
