@@ -4,11 +4,29 @@ import {
   type AuditoriaChecklistFacil,
   buscarAuditoriaEstruturada,
 } from "@/lib/checklist-facil.server";
-import { type SugestaoItem, gerarParecer } from "@/lib/parecer.server";
+import {
+  type ItemAuditoria,
+  type ParecerItem,
+  type SugestaoItem,
+  gerarParecer,
+} from "@/lib/parecer.server";
 
 /** Fluxo de POST /api/revisar: busca → parecer com IA → grava no banco. */
 
 type Db = SupabaseClient<Database>;
+
+/**
+ * Revisão completa guardada em auditorias.payload (equivale aos JSONs de
+ * output/ do Python). Os itens mantêm todos os campos vindos do Checklist
+ * Fácil (tipo_resposta, resposta_codigo…) mais o parecer gerado.
+ */
+export type PayloadRevisao = {
+  cabecalho: AuditoriaChecklistFacil["cabecalho"];
+  resumo: AuditoriaChecklistFacil["resumo"];
+  itens: (ItemAuditoria & { parecer: ParecerItem | null; erro_parecer: string | null })[];
+  parecer_geral: string;
+  gerado_em: string;
+};
 
 export type SugestaoRevisao = SugestaoItem & {
   /** Id em public.sugestoes, para o feedback. null se a gravação falhou. */
@@ -52,7 +70,20 @@ export async function executarRevisao(
     { db, admin, userId, evaluationId },
   );
 
-  const idsSugestoes = await persistir(admin, evaluationId, userId, auditoria, resultado.itens);
+  // gerarParecer devolve os itens na mesma ordem da entrada.
+  const payload: PayloadRevisao = {
+    cabecalho,
+    resumo,
+    itens: auditoria.itens.map((item, i) => ({
+      ...item,
+      parecer: resultado.itens[i]?.parecer ?? null,
+      erro_parecer: resultado.itens[i]?.erro ?? null,
+    })),
+    parecer_geral: resultado.parecer,
+    gerado_em: new Date().toISOString(),
+  };
+
+  const idsSugestoes = await persistir(admin, evaluationId, userId, auditoria, resultado.itens, payload);
 
   return {
     evaluation_id: evaluationId,
@@ -89,6 +120,7 @@ async function persistir(
   userId: string,
   auditoria: AuditoriaChecklistFacil,
   itens: SugestaoItem[],
+  payload: PayloadRevisao,
 ): Promise<Map<string, number>> {
   try {
     const { data: auditoriaId, error } = await admin.rpc("registrar_auditoria", {
@@ -97,6 +129,7 @@ async function persistir(
       p_cabecalho: auditoria.cabecalho as unknown as Json,
       p_resumo: auditoria.resumo as unknown as Json,
       p_itens: itens as unknown as Json,
+      p_payload: payload as unknown as Json,
     });
     if (error) {
       throw new Error(error.message);
