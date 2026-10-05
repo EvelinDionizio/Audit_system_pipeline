@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { sair } from "@/lib/auth-client";
 
 /** Substitui POST /api/logout. */
-export function BotaoSair() {
+export function BotaoSair({ variant = "outline" }: { variant?: "outline" | "header" }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [saindo, setSaindo] = useState(false);
@@ -19,7 +19,7 @@ export function BotaoSair() {
   }
 
   return (
-    <Button variant="outline" size="sm" onClick={handleSair} disabled={saindo}>
+    <Button variant={variant} size="sm" onClick={handleSair} disabled={saindo}>
       <LogOut />
       Sair
     </Button>
