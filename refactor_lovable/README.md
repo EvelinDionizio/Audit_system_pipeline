@@ -12,7 +12,7 @@ desta pasta espelha a raiz do projeto no Lovable: o conteúdo de `supabase/` e
 | 1. Banco (migrations) | ✅ pronta |
 | 2. Login (Microsoft Entra ID) | ✅ pronta |
 | 3a. Parecer com Claude + RAG das normas | ✅ pronta |
-| 3b. Integração Checklist Fácil (+ server function de revisão) | ⏳ aguardando definição da API |
+| 3b. Integração Checklist Fácil (busca da avaliação) | ✅ pronta (regras de itens e lote: pendentes) |
 | 5. Telas | ✅ pronta |
 | 6. Exportação Excel | ✅ pronta |
 
@@ -225,7 +225,7 @@ Lovable Cloud. O controle de quem pode usar o sistema continua no banco
 | `src/routes/_authenticated/index.tsx` | Revisão (`/`, substitui `static/index.html`) |
 | `src/components/revisao/*` | Resultado por categoria, filtros, card do item, feedback |
 | `src/lib/revisao.server.ts`, `revisao.functions.ts` | `revisarAuditoria` (busca → parecer → `registrar_auditoria`) e `registrarFeedback` |
-| `src/lib/checklist-facil.server.ts` | Ponto único da busca no Checklist Fácil: **pendente (Parte 3b)** |
+| `src/lib/checklist-facil.server.ts` | Busca e estruturação da avaliação no Checklist Fácil (Parte 3b) |
 | `src/routes/_authenticated/analista/index.tsx` | Painel do Analista (`/analista`, substitui `static/analista.html`) |
 | `src/components/analista/*` | Abas Auditorias, Indicadores, Usuários, Configurações (regras + normas) e Tokens |
 | `src/lib/analista.server.ts`, `analista.functions.ts` | Dados do painel; `analistaMiddleware` exige analista |
@@ -269,10 +269,10 @@ Lovable Cloud. O controle de quem pode usar o sistema continua no banco
 
 ### Pendências desta parte
 
-- **Parte 3b:** busca no Checklist Fácil (hoje a revisão para com uma
-  mensagem clara), botão "Processar pendentes" (lote), aplicação das regras
-  de itens na revisão (desabilitar item, tipo obrigatório/sugestão,
-  "exige imagem" sem anexo) e alinhamento de `tipo` × `obrigatorio`.
+- **Parte 3b (restante):** botão "Processar pendentes" (lote) e aplicação
+  das regras de itens na revisão (desabilitar item, tipo
+  obrigatório/sugestão, "exige imagem" sem anexo). A busca da avaliação
+  está pronta (ver "Parte 3b" abaixo).
 - **Parte 6:** botão "Exportar Excel" na aba Auditorias.
 - Revisões longas (muitos itens) podem esbarrar no tempo máximo de uma
   requisição no runtime edge: validar na prática.
@@ -486,3 +486,43 @@ npm run local:parar    # desliga o Supabase (os dados ficam no volume do Docker)
 - A IA usa a `ANTHROPIC_API_KEY` do `.env`; as chaves do Supabase do `.env`
   são substituídas pelas do Supabase local.
 - `supabase/config.toml` é só do ambiente local: não copie para o Lovable.
+
+## Parte 3b — Busca da avaliação no Checklist Fácil
+
+`src/lib/checklist-facil.server.ts` substitui `api/client.py`,
+`polling_service.py` e `enrichment_service.py`. A revisão (`/`) agora busca a
+avaliação, gera os pareceres e grava no banco.
+
+- **Endpoint:** API de Integração, `GET v2/evaluations/{id}` (responde 200;
+  o 404 citado antes era de outro id/token). Mesma estrutura que o Python lia.
+- **Limite de consultas:** a API permite 1 requisição por janela
+  (`X-RateLimit-Limit: 1`) e responde 429 com `Retry-After`. O código espera
+  e tenta de novo até `API_MAX_TENTATIVAS` (padrão 3), com espera de no
+  máximo `API_ESPERA_429` segundos (padrão 60).
+- **Secrets:** `CHECKLIST_FACIL_INTEGRATION_URL` e `CHECKLIST_FACIL_API_TOKEN`
+  (`CHECKLIST_FACIL_BASE_URL`, da API Analytics, fica para o lote).
+
+### Mudança de comportamento
+
+- **Texto livre: palavra-chave só casa no início de palavra.** No Python, a
+  busca por `"nc"` era por substring e marcava como Não Conforme textos com
+  "concedidos", "presencial", "confidencial"… Na avaliação #211829902 isso
+  gerava 6 falsas não conformidades (93,3% contra 99,0% agora; a nota do
+  próprio Checklist Fácil é 98,96). `nc`, `ok` e `sim` precisam ser palavras
+  inteiras; as demais casam como prefixo ("parcial" → "parcialmente").
+
+### Verificado em 2026-10-05
+
+- Mesma avaliação real processada pelo Python e pelo TypeScript: cabeçalho e
+  209 itens idênticos; as 6 diferenças são os falsos positivos acima.
+- Revisão completa da #211829902 no ambiente local: 7 pareceres de item +
+  parecer geral (~50 s, ~US$ 0,23), auditoria, sugestões e uso de tokens
+  gravados.
+
+### Observações para depois
+
+- O rótulo "N NC" de cada categoria na tela conta os itens **obrigatórios**,
+  não só os não conformes (ex.: "Entrevistas · 3 NC" com 0 não conformes).
+- A heurística de erro de digitação (`temErroOrtografico`, herdada do
+  Python) marca como "Obrigatório" textos longos com nomes e siglas, o que
+  gera chamadas à IA em itens conformes (6 das 7 nesta avaliação).
