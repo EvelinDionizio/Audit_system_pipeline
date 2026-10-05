@@ -5,6 +5,8 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 type AppRole = "analista" | "auditor";
+/** sso = entra pela Microsoft; senha = externo, entra com e-mail e senha. */
+type TipoAcesso = "sso" | "senha";
 
 export type Database = {
   __InternalSupabase: {
@@ -20,6 +22,9 @@ export type Database = {
           ativo: boolean;
           criado_em: string;
           ultimo_acesso: string | null;
+          tipo_acesso: TipoAcesso;
+          senha_alterada_em: string | null;
+          deve_trocar_senha: boolean;
         };
         Insert: {
           id: string;
@@ -28,6 +33,9 @@ export type Database = {
           ativo?: boolean;
           criado_em?: string;
           ultimo_acesso?: string | null;
+          tipo_acesso?: TipoAcesso;
+          senha_alterada_em?: string | null;
+          deve_trocar_senha?: boolean;
         };
         Update: {
           id?: string;
@@ -36,6 +44,9 @@ export type Database = {
           ativo?: boolean;
           criado_em?: string;
           ultimo_acesso?: string | null;
+          tipo_acesso?: TipoAcesso;
+          senha_alterada_em?: string | null;
+          deve_trocar_senha?: boolean;
         };
         Relationships: [];
       };
@@ -52,6 +63,7 @@ export type Database = {
           perfil: AppRole;
           criado_por: string | null;
           criado_em: string;
+          tipo_acesso: TipoAcesso;
         };
         Insert: {
           email: string;
@@ -59,6 +71,7 @@ export type Database = {
           perfil?: AppRole;
           criado_por?: string | null;
           criado_em?: string;
+          tipo_acesso?: TipoAcesso;
         };
         Update: {
           email?: string;
@@ -66,6 +79,7 @@ export type Database = {
           perfil?: AppRole;
           criado_por?: string | null;
           criado_em?: string;
+          tipo_acesso?: TipoAcesso;
         };
         Relationships: [];
       };
