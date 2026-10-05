@@ -463,7 +463,7 @@ vão junto. Baixe um de tempos em tempos para fora dele.
 As regras de conformidade (notas 1-6, palavras-chave de texto livre), os
 pesos (Mandatório 3, Importantes 2, Desejáveis 1), o score ponderado e os
 níveis (90/75/60) são as mesmas. Conferido item a item contra o código
-Python com os mesmos dados: resultado idêntico.
+Python com os mesmos dados: resultado idêntico (exceto a correção das palavras curtas, abaixo).
 
 ### Secrets
 
@@ -483,10 +483,7 @@ Python com os mesmos dados: resultado idêntico.
   Analytics funcionava). Se isso persistir, a revisão mostra "não
   encontrada"; nesse caso é preciso confirmar com a Checklist Fácil qual
   endpoint devolve o detalhe e o formato do JSON.
-- **Herdado do Python:** em respostas de texto livre sem nota, a palavra-chave
-  `nc` casa com qualquer palavra que a contenha (ex.: "Financeiro",
-  "concluído") e marca o item como não conforme. Mantido igual para não mudar
-  as regras sem decisão; vale trocar por correspondência de palavra inteira.
+- **Corrigido em relação ao Python:** em respostas de texto livre sem nota, as palavras curtas (`nc`, `ok`, `sim`) agora valem só como palavra inteira. No Python eram busca de trecho, e `nc` marcava como não conforme qualquer texto que contivesse essas letras (ex.: `Financeiro`, `concluído`). As palavras longas seguem como no Python.
 - Fora desta parte: botão "Processar pendentes" (lote, usa a API de
   Analytics) e aplicação das regras de `config_itens` na revisão (o Python
   também não as aplicava na revisão).

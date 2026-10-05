@@ -93,7 +93,18 @@ const PALAVRAS_CONFORME = [
   "conforme", "ok", "sim", "atende", "possui", "regular", "adequado", "existe", "apresentado", "formalizado",
 ];
 
-const contem = (texto: string, palavras: string[]) => palavras.some((p) => texto.includes(p));
+// Palavras curtas (nc, ok, sim) só valem como palavra inteira. No Python eram
+// busca de trecho, e "nc" marcava como não conforme qualquer texto com essas
+// letras (ex.: "Financeiro", "concluído"). As demais seguem como no Python.
+const MAX_PALAVRA_CURTA = 3;
+const SEPARADOR = String.raw`[^\p{L}\p{N}]`;
+
+function contemPalavra(texto: string, palavra: string): boolean {
+  if (palavra.length > MAX_PALAVRA_CURTA) return texto.includes(palavra);
+  return new RegExp(`(?:^|${SEPARADOR})${palavra}(?:$|${SEPARADOR})`, "u").test(texto);
+}
+
+const contem = (texto: string, palavras: string[]) => palavras.some((p) => contemPalavra(texto, p));
 
 function detectarConformidadeTexto(texto: string) {
   const t = texto.toLowerCase().trim();
