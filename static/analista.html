@@ -186,6 +186,14 @@ tbody td{padding:11px 14px;vertical-align:middle}
         <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
         Novo usuário
       </button>
+      <button class="btn-atualizar" onclick="verInativos()" style="background:var(--amarelo)" title="Ver usuários inativos">
+        <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Inativos
+      </button>
+      <button class="btn-atualizar" onclick="verInativos()" style="background:var(--amarelo)" title="Ver usuários inativos há mais de 90 dias">
+        <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Inativos
+      </button>
       <button class="btn-atualizar" onclick="carregarUsuarios()">
         <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
         Atualizar
@@ -491,22 +499,31 @@ async function carregarUsuarios() {
   }
 }
 
+var _usuarios = [];
+
 function renderizarUsuarios(usuarios) {
+  _usuarios = usuarios;
   if (usuarios.length===0) { document.getElementById("tabela-usuarios").innerHTML='<div class="estado">Nenhum usuário.</div>'; return; }
-  var linhas = usuarios.map(function(u){
-    var dt=u.ultimo_acesso?new Date(u.ultimo_acesso).toLocaleDateString("pt-BR"):"Nunca";
+  var linhas = usuarios.map(function(u, idx){
+    var dt = u.ultimo_acesso ? new Date(u.ultimo_acesso).toLocaleDateString("pt-BR") : "Nunca";
+    var novoPerfil  = u.perfil === "analista" ? "auditor" : "analista";
+    var labelPerfil = u.perfil === "analista" ? "→ Auditor" : "→ Analista";
     return '<tr>'
       +'<td style="font-weight:600">'+u.nome+'</td>'
-      +'<td style="color:var(--cinza)">'+u.email+'</td>'
+      +'<td style="color:var(--cinza);font-size:12px">'+u.email+'</td>'
       +'<td><span class="perfil-tag perfil-'+u.perfil+'">'+u.perfil+'</span></td>'
       +'<td><span class="'+(u.ativo?"ativo-sim":"ativo-nao")+'">'+(u.ativo?"Ativo":"Inativo")+'</span></td>'
       +'<td style="color:var(--cinza);font-size:12px">'+dt+'</td>'
-      +'<td><button onclick="toggleAtivo('+u.id+','+u.ativo+')" style="font-size:11px;padding:3px 8px;border-radius:5px;border:1px solid var(--borda);cursor:pointer;background:var(--cinza-lt);color:var(--texto)">'+(u.ativo?"Desativar":"Ativar")+'</button></td>'
+      +'<td style="display:flex;gap:5px;flex-wrap:wrap">'
+        +'<button data-idx="'+idx+'" onclick="toggleAtivo(this.dataset.idx)" style="font-size:11px;padding:3px 7px;border-radius:5px;border:1px solid var(--borda);cursor:pointer;background:var(--cinza-lt);color:var(--texto)">'+(u.ativo?"Desativar":"Ativar")+'</button>'
+        +'<button data-idx="'+idx+'" onclick="trocarPerfil(this.dataset.idx)" style="font-size:11px;padding:3px 7px;border-radius:5px;border:1px solid var(--azul-lt);cursor:pointer;background:var(--azul-lt);color:var(--azul-md)">'+labelPerfil+'</button>'
+        +'<button data-idx="'+idx+'" onclick="confirmarExcluir(this.dataset.idx)" style="font-size:11px;padding:3px 7px;border-radius:5px;border:1px solid #fecaca;cursor:pointer;background:#fef2f2;color:var(--vermelho)">Excluir</button>'
+      +'</td>'
       +'</tr>';
   }).join("");
   document.getElementById("tabela-usuarios").innerHTML=
     '<div class="table-wrap"><table>'
-    +'<thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Status</th><th>Último acesso</th><th>Ação</th></tr></thead>'
+    +'<thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Status</th><th>Último acesso</th><th>Ações</th></tr></thead>'
     +'<tbody>'+linhas+'</tbody></table></div>';
 }
 
@@ -517,6 +534,26 @@ function abrirModalUsuario(){
   document.getElementById("modal-usuario").classList.add("open");
 }
 function fecharModal(){ document.getElementById("modal-usuario").classList.remove("open"); }
+
+async function verInativos() {
+  var dias = prompt("Mostrar usuários inativos há mais de quantos dias?", "90");
+  if (!dias || isNaN(dias)) return;
+  try {
+    var res  = await fetch("/api/usuarios/inativos?dias="+parseInt(dias));
+    var data = await res.json();
+    var lista = data.usuarios || [];
+    if (lista.length === 0) {
+      alert("Nenhum usuário inativo há mais de " + dias + " dias.");
+      return;
+    }
+    var msg = "Usuários inativos há mais de " + dias + " dias:\n\n";
+    lista.forEach(function(u) {
+      var acesso = u.ultimo_acesso ? new Date(u.ultimo_acesso).toLocaleDateString("pt-BR") : "Nunca acessou";
+      msg += "• " + u.nome + " (" + u.perfil + ") — " + u.dias_inativo + " dias — Último acesso: " + acesso + "\n";
+    });
+    alert(msg);
+  } catch(e) { alert("Erro ao buscar inativos."); }
+}
 
 async function salvarUsuario(){
   var nome  = document.getElementById("u-nome").value.trim();
@@ -534,11 +571,41 @@ async function salvarUsuario(){
   } catch(e){ erroEl.textContent="Erro de conexão."; erroEl.style.display="block"; }
 }
 
-async function toggleAtivo(uid, ativoAtual){
-  try {
-    await fetch("/api/usuarios/"+uid,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({ativo:ativoAtual?0:1})});
+async function toggleAtivo(idx){
+  var u = _usuarios[parseInt(idx)];
+  if (!u) return;
+  try{
+    await fetch("/api/usuarios/"+u.id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({ativo:u.ativo?0:1})});
     carregarUsuarios();
   } catch(e){ alert("Erro ao alterar status."); }
+}
+
+async function trocarPerfil(idx){
+  var u = _usuarios[parseInt(idx)];
+  if (!u) return;
+  var novoPerfil = u.perfil === "analista" ? "auditor" : "analista";
+  if (!confirm("Trocar " + u.nome + " de " + u.perfil + " para " + novoPerfil + "?")) return;
+  try{
+    var res = await fetch("/api/usuarios/"+u.id+"/perfil",{
+      method:"PATCH",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({perfil:novoPerfil})
+    });
+    var data = await res.json();
+    if (!res.ok) return alert(data.detail||"Erro ao alterar perfil.");
+    carregarUsuarios();
+  } catch(e){ alert("Erro ao alterar perfil."); }
+}
+
+async function confirmarExcluir(idx){
+  var u = _usuarios[parseInt(idx)];
+  if (!u) return;
+  if (!confirm("Excluir permanentemente " + u.nome + "?\nEsta ação não pode ser desfeita.")) return;
+  try{
+    var res = await fetch("/api/usuarios/"+u.id,{method:"DELETE"});
+    var data = await res.json();
+    if (!res.ok) return alert(data.detail||"Erro ao excluir usuário.");
+    carregarUsuarios();
+  } catch(e){ alert("Erro ao excluir usuário."); }
 }
 
 // ── REPROCESSAMENTOS ──────────────────────────────────────────────────────────

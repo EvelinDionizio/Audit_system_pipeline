@@ -9,7 +9,7 @@ import hashlib
 import secrets
 import os
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Localização do banco — pasta data/ na raiz do projeto
 DB_PATH = Path(__file__).resolve().parents[2] / "data" / "bernhoeft.db"
@@ -36,10 +36,11 @@ def init_db():
             nome          TEXT    NOT NULL,
             email         TEXT    NOT NULL UNIQUE,
             senha_hash    TEXT    NOT NULL,
-            perfil        TEXT    NOT NULL DEFAULT 'auditor',  -- 'auditor' | 'analista'
+            perfil        TEXT    NOT NULL DEFAULT 'auditor',
             ativo         INTEGER NOT NULL DEFAULT 1,
             criado_em     TEXT    NOT NULL DEFAULT (datetime('now')),
-            ultimo_acesso TEXT
+            ultimo_acesso TEXT,
+            senha_alterada_em TEXT DEFAULT (datetime('now'))
         )
     """)
 
@@ -155,6 +156,7 @@ def init_db():
         "ALTER TABLE auditorias ADD COLUMN atualizado_em TEXT",
         "CREATE TABLE IF NOT EXISTS reprocessamentos (id INTEGER PRIMARY KEY AUTOINCREMENT, evaluation_id INTEGER NOT NULL, usuario_id INTEGER REFERENCES usuarios(id), percentual_conformidade REAL, nivel_conformidade TEXT, total_itens INTEGER DEFAULT 0, total_nc INTEGER DEFAULT 0, processado_em TEXT NOT NULL DEFAULT (datetime('now')))",
         "CREATE TABLE IF NOT EXISTS uso_tokens (id INTEGER PRIMARY KEY AUTOINCREMENT, evaluation_id INTEGER, usuario_id INTEGER, modelo TEXT, tipo_chamada TEXT, tokens_input INTEGER DEFAULT 0, tokens_output INTEGER DEFAULT 0, tokens_total INTEGER DEFAULT 0, custo_usd REAL, criado_em TEXT NOT NULL DEFAULT (datetime('now')))",
+        "ALTER TABLE usuarios ADD COLUMN senha_alterada_em TEXT DEFAULT (datetime('now'))",
     ]
     for sql in migrations:
         try:
@@ -250,11 +252,59 @@ def atualizar_usuario(uid: int, **kwargs):
     conn.close()
 
 
+def validar_forca_senha(senha: str) -> str | None:
+    """
+    Valida a política de senha corporativa.
+    Retorna None se válida, ou mensagem de erro se inválida.
+    Política: mínimo 8 caracteres, maiúscula, minúscula e número.
+    """
+    if len(senha) < 8:
+        return "A senha deve ter pelo menos 8 caracteres."
+    if not any(c.isupper() for c in senha):
+        return "A senha deve conter pelo menos uma letra maiúscula."
+    if not any(c.islower() for c in senha):
+        return "A senha deve conter pelo menos uma letra minúscula."
+    if not any(c.isdigit() for c in senha):
+        return "A senha deve conter pelo menos um número."
+    return None
+
+
+def dias_ate_expirar_senha(uid: int, dias_validade: int = 90) -> int:
+    """
+    Retorna quantos dias faltam para a senha expirar.
+    Valor negativo significa que já expirou.
+    """
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT senha_alterada_em FROM usuarios WHERE id=?", (uid,)
+    ).fetchone()
+    conn.close()
+    if not row or not row["senha_alterada_em"]:
+        return 0
+    from datetime import date
+    try:
+        alterada = datetime.fromisoformat(row["senha_alterada_em"]).date()
+        expira   = alterada + timedelta(days=dias_validade)
+        return (expira - date.today()).days
+    except Exception:
+        return dias_validade
+
+
+def senha_expirada(uid: int, dias_validade: int = 90) -> bool:
+    """Retorna True se a senha do usuário expirou."""
+    return dias_ate_expirar_senha(uid, dias_validade) < 0
+
+
 def alterar_senha(uid: int, nova_senha: str):
     conn = get_conn()
-    conn.execute("UPDATE usuarios SET senha_hash=? WHERE id=?", (hash_senha(nova_senha), uid))
+    conn.execute(
+        "UPDATE usuarios SET senha_hash=?, senha_alterada_em=datetime('now') WHERE id=?",
+        (hash_senha(nova_senha), uid)
+    )
     conn.commit()
     conn.close()
+
+
 
 
 # ── Sessões ───────────────────────────────────────────────────────────────────
@@ -609,5 +659,49 @@ def uso_tokens_por_dia(dias: int = 30) -> list[dict]:
         GROUP BY DATE(criado_em)
         ORDER BY dia DESC
     """, (f"-{dias} days",)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def excluir_usuario(uid: int):
+    conn = get_conn()
+    analistas = conn.execute(
+        "SELECT COUNT(*) as n FROM usuarios WHERE perfil='analista' AND ativo=1"
+    ).fetchone()["n"]
+    usuario = conn.execute("SELECT perfil FROM usuarios WHERE id=?", (uid,)).fetchone()
+    if usuario and usuario["perfil"] == "analista" and analistas <= 1:
+        conn.close()
+        raise ValueError("Não é possível excluir o único analista ativo do sistema.")
+    conn.execute("DELETE FROM sessoes WHERE usuario_id=?", (uid,))
+    conn.execute("DELETE FROM usuarios WHERE id=?", (uid,))
+    conn.commit()
+    conn.close()
+
+
+def alterar_perfil(uid: int, novo_perfil: str):
+    if novo_perfil not in ("auditor", "analista"):
+        raise ValueError("Perfil inválido.")
+    conn = get_conn()
+    usuario = conn.execute("SELECT perfil FROM usuarios WHERE id=?", (uid,)).fetchone()
+    if usuario and usuario["perfil"] == "analista" and novo_perfil == "auditor":
+        analistas = conn.execute(
+            "SELECT COUNT(*) as n FROM usuarios WHERE perfil='analista' AND ativo=1"
+        ).fetchone()["n"]
+        if analistas <= 1:
+            conn.close()
+            raise ValueError("Não é possível rebaixar o único analista ativo do sistema.")
+    conn.execute("UPDATE usuarios SET perfil=? WHERE id=?", (novo_perfil, uid))
+    conn.commit()
+    conn.close()
+
+
+def listar_inativos(dias: int = 90) -> list[dict]:
+    conn = get_conn()
+    rows = conn.execute("""
+        SELECT id, nome, email, perfil, ativo, ultimo_acesso,
+               CAST(julianday('now') - julianday(COALESCE(ultimo_acesso, criado_em)) AS INTEGER) AS dias_inativo
+        FROM usuarios
+        WHERE CAST(julianday('now') - julianday(COALESCE(ultimo_acesso, criado_em)) AS INTEGER) >= ?
+        ORDER BY dias_inativo DESC
+    """, (dias,)).fetchall()
     conn.close()
     return [dict(r) for r in rows]

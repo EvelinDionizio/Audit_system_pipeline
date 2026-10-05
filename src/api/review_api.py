@@ -130,17 +130,25 @@ def health():
 
 @app.post("/api/login")
 def login(req: LoginRequest, response: Response):
-    from database import buscar_usuario_por_email, verificar_senha, criar_sessao
+    from database import buscar_usuario_por_email, verificar_senha, criar_sessao, dias_ate_expirar_senha
     user = buscar_usuario_por_email(req.email)
     if not user or not verificar_senha(req.senha, user["senha_hash"]):
         raise HTTPException(status_code=401, detail="E-mail ou senha incorretos.")
     token = criar_sessao(user["id"])
-    response.set_cookie("session_token", token, httponly=True, samesite="lax", max_age=28800)
+    response.set_cookie(
+        "session_token", token,
+        httponly=True, samesite="lax",
+        secure=False, max_age=28800, path="/"
+    )
+    # Verifica expiração de senha — política de 90 dias
+    dias_restantes = dias_ate_expirar_senha(user["id"], 90)
     return {
-        "token":  token,
-        "perfil": user["perfil"],
-        "nome":   user["nome"],
-        "email":  user["email"],
+        "token":            token,
+        "perfil":           user["perfil"],
+        "nome":             user["nome"],
+        "email":            user["email"],
+        "senha_expirada":   dias_restantes < 0,
+        "dias_ate_expirar": dias_restantes,
     }
 
 
@@ -162,10 +170,15 @@ def me(request: Request):
 
 @app.post("/api/alterar-senha")
 def alterar_senha(req: AlterarSenhaRequest, request: Request):
-    from database import buscar_usuario_por_id, verificar_senha, alterar_senha as db_alterar
+    from database import verificar_senha, alterar_senha as db_alterar, validar_forca_senha
     user = require_auth(request)
     if not verificar_senha(req.senha_atual, user["senha_hash"]):
         raise HTTPException(status_code=400, detail="Senha atual incorreta.")
+    erro = validar_forca_senha(req.nova_senha)
+    if erro:
+        raise HTTPException(status_code=400, detail=erro)
+    if req.nova_senha == req.senha_atual:
+        raise HTTPException(status_code=400, detail="A nova senha não pode ser igual à senha atual.")
     db_alterar(user["id"], req.nova_senha)
     return {"status": "Senha alterada com sucesso."}
 
@@ -376,6 +389,36 @@ def atualizar_usuario(uid: int, dados: dict, request: Request):
     from database import atualizar_usuario as db_atualizar
     db_atualizar(uid, **dados)
     return {"status": "ok"}
+
+@app.delete("/api/usuarios/{uid}")
+def deletar_usuario(uid: int, request: Request):
+    require_analista(request)
+    user = require_auth(request)
+    if user["id"] == uid:
+        raise HTTPException(status_code=400, detail="Você não pode excluir sua própria conta.")
+    from database import excluir_usuario
+    try:
+        excluir_usuario(uid)
+        return {"status": "ok"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.patch("/api/usuarios/{uid}/perfil")
+def alterar_perfil_usuario(uid: int, dados: dict, request: Request):
+    require_analista(request)
+    user = require_auth(request)
+    novo_perfil = dados.get("perfil")
+    if not novo_perfil:
+        raise HTTPException(status_code=400, detail="Campo 'perfil' obrigatório.")
+    if user["id"] == uid and novo_perfil == "auditor":
+        raise HTTPException(status_code=400, detail="Você não pode rebaixar sua própria conta.")
+    from database import alterar_perfil
+    try:
+        alterar_perfil(uid, novo_perfil)
+        return {"status": "ok"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # ── Configuração de itens ─────────────────────────────────────────────────────

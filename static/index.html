@@ -284,6 +284,31 @@ header {
 
 </div>
 
+<!-- MODAL REDEFINIR SENHA -->
+<div id="modal-senha" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center;padding:20px">
+  <div style="background:white;border-radius:14px;padding:28px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+    <h2 style="font-size:16px;font-weight:700;color:var(--azul);margin-bottom:20px">Redefinir senha</h2>
+    <div style="margin-bottom:12px">
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--texto);margin-bottom:5px">Senha atual</label>
+      <input type="password" id="senha-atual" style="width:100%;border:1.5px solid var(--borda);border-radius:8px;padding:10px 13px;font-size:14px;outline:none" placeholder="••••••••"/>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--texto);margin-bottom:5px">Nova senha</label>
+      <input type="password" id="senha-nova" style="width:100%;border:1.5px solid var(--borda);border-radius:8px;padding:10px 13px;font-size:14px;outline:none" placeholder="Mínimo 6 caracteres"/>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--texto);margin-bottom:5px">Confirmar nova senha</label>
+      <input type="password" id="senha-confirma" style="width:100%;border:1.5px solid var(--borda);border-radius:8px;padding:10px 13px;font-size:14px;outline:none" placeholder="Repita a nova senha"/>
+    </div>
+    <div id="senha-erro" style="display:none;color:var(--vermelho);font-size:13px;margin-bottom:10px"></div>
+    <div id="senha-ok"   style="display:none;color:var(--verde);font-size:13px;margin-bottom:10px">Senha alterada com sucesso!</div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button onclick="fecharModalSenha()" style="background:var(--cinza-lt);border:1px solid var(--borda);border-radius:7px;padding:9px 16px;font-size:13px;cursor:pointer;color:var(--cinza)">Cancelar</button>
+      <button onclick="salvarSenha()" style="background:var(--azul);color:white;border:none;border-radius:7px;padding:9px 20px;font-size:13px;font-weight:600;cursor:pointer">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── CONFIGURAÇÃO GLOBAL ───────────────────────────────────────────────────────
 const TOKEN  = localStorage.getItem("token");
@@ -316,7 +341,8 @@ document.addEventListener("DOMContentLoaded", function() {
     nav.innerHTML =
       '<span style="color:rgba(255,255,255,.6);font-size:12px;margin-right:8px">' + nome + '</span>'
       + (perfil === "analista" ? '<a href="/analista">Painel →</a>' : "")
-      + '<a href="#" onclick="sair();return false" style="color:rgba(255,255,255,.6)">Sair</a>';
+      + '<a href="#" onclick="abrirModalSenha();return false" style="color:rgba(255,255,255,.55);font-size:12px">🔑 Senha</a>'
+      + '<a href="#" onclick="sair();return false" style="color:rgba(255,255,255,.55)">Sair</a>';
   }
 });
 
@@ -360,11 +386,7 @@ function limparMarkdown(txt) {
     .replace(/\*(.+?)\*/g, "$1")         // remove *itálico*
     .replace(/---\s*/g, "")              // remove separadores ---
     .replace(/^\s*[-*]\s+/gm, "• ")      // normaliza listas
-    .replace(/
-{3,}/g, "
-
-")          // remove linhas em branco extras
-    .trim();
+    .replace(/ {3,}/g, "")          // remove linhas em branco extras.trim();
 }
 
 function renderizar(data) {
@@ -522,7 +544,21 @@ function renderizar(data) {
       </div>`;
   }
 
-  document.getElementById("resultado").innerHTML = scoreHTML + itensHTML + parecerHTML;
+  // Banner de revisões restantes
+  const restantes = data.revisoes_restantes;
+  const feitas    = data.revisoes_feitas;
+  const limite    = data.limite_revisoes || 5;
+  let bannerHTML  = "";
+  if (restantes !== undefined) {
+    const cor     = restantes <= 1 ? "var(--vermelho)" : restantes <= 2 ? "var(--amarelo)" : "var(--verde)";
+    const icone   = restantes <= 1 ? "⚠" : "ℹ";
+    const msg     = restantes === 0
+      ? `Última revisão utilizada para esta auditoria. Entre em contato com o analista para liberar mais.`
+      : `${icone} Revisão ${feitas} de ${limite} para esta auditoria. Restam <strong>${restantes}</strong> revisão(ões).`;
+    bannerHTML = `<div style="background:${restantes<=1?"var(--vermelho-lt)":"var(--azul-lt)"};border:1px solid ${restantes<=1?"#fecaca":"var(--borda)"};border-radius:var(--radius);padding:12px 16px;margin-bottom:14px;font-size:13px;color:${cor}">${msg}</div>`;
+  }
+
+  document.getElementById("resultado").innerHTML = bannerHTML + scoreHTML + itensHTML + parecerHTML;
   mostrar("resultado");
   document.getElementById("resultado").scrollIntoView({behavior:"smooth"});
 }
@@ -553,6 +589,37 @@ function filtrarItens(tipo) {
     ac.style.display = visiveis.length > 0 ? "" : "none";
     if (visiveis.length > 0 && tipo !== "todos") ac.classList.add("aberto");
   });
+}
+
+function abrirModalSenha() {
+  ["senha-atual","senha-nova","senha-confirma"].forEach(function(id){document.getElementById(id).value="";});
+  document.getElementById("senha-erro").style.display="none";
+  document.getElementById("senha-ok").style.display="none";
+  document.getElementById("modal-senha").style.display="flex";
+}
+function fecharModalSenha() {
+  document.getElementById("modal-senha").style.display="none";
+}
+async function salvarSenha() {
+  const atual     = document.getElementById("senha-atual").value;
+  const nova      = document.getElementById("senha-nova").value;
+  const confirma  = document.getElementById("senha-confirma").value;
+  const erroEl    = document.getElementById("senha-erro");
+  const okEl      = document.getElementById("senha-ok");
+  erroEl.style.display="none"; okEl.style.display="none";
+  if (!atual || !nova || !confirma) { erroEl.textContent="Preencha todos os campos."; erroEl.style.display="block"; return; }
+  if (nova.length < 6) { erroEl.textContent="A nova senha deve ter pelo menos 6 caracteres."; erroEl.style.display="block"; return; }
+  if (nova !== confirma) { erroEl.textContent="As senhas não coincidem."; erroEl.style.display="block"; return; }
+  try {
+    const res  = await fetch("/api/alterar-senha", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({senha_atual: atual, nova_senha: nova})
+    });
+    const data = await res.json();
+    if (!res.ok) { erroEl.textContent=data.detail||"Erro ao alterar senha."; erroEl.style.display="block"; return; }
+    okEl.style.display="block";
+    setTimeout(fecharModalSenha, 1500);
+  } catch(e) { erroEl.textContent="Erro de conexão."; erroEl.style.display="block"; }
 }
 
 function copiarTexto(btn, encodedText) {
