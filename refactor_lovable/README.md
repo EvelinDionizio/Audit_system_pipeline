@@ -10,7 +10,7 @@ desta pasta espelha a raiz do projeto no Lovable: o conteúdo de `supabase/` e
 | Parte | Status |
 |---|---|
 | 1. Banco (migrations) | ✅ pronta |
-| 2. Login (Microsoft Entra ID) | ⏳ |
+| 2. Login (Microsoft Entra ID) | ✅ pronta |
 | 3. Integrações (Checklist Fácil + parecer Claude) | ⏳ |
 | 4. RAG das normas | ⏳ |
 | 5. Telas | ⏳ |
@@ -82,3 +82,65 @@ parser do Postgres (`pglast`). Ainda não foram executadas num banco real:
 validar ao aplicar no Lovable Cloud.
 
 Secrets novos nesta parte: nenhum.
+
+## Parte 2 — Login (Microsoft Entra ID)
+
+Login, sessão e senha saem do app: quem autentica é a Microsoft, via Auth do
+Lovable Cloud. O controle de quem pode usar o sistema continua no banco
+(`usuarios_autorizados`, Parte 1).
+
+| Arquivo | Papel |
+|---|---|
+| `src/lib/auth-middleware.ts` | Middleware das server functions: envia o token no cliente, valida no servidor e entrega um client do banco que age como o usuário (RLS) |
+| `src/lib/auth.server.ts` | `getUsuarioAtual()`: perfil + papel |
+| `src/lib/auth.functions.ts` | `getMe` (server function) e `meQueryOptions` |
+| `src/lib/auth-client.ts` | `entrarComMicrosoft()`, `sair()`, `obterSessao()`, `destinoSeguro()` |
+| `src/routes/auth.tsx` | Tela de login (`/auth`) |
+| `src/routes/_authenticated/route.tsx` | Layout protegido: exige sessão e usuário autorizado; entrega `context.me` |
+| `src/routes/_authenticated/analista/route.tsx` | Área `/analista`: exige papel analista |
+| `src/routes/acesso-pendente.tsx` | Logou com a Microsoft, mas não foi autorizado por um analista |
+| `src/components/botao-sair.tsx` | Botão de logout |
+| `src/components/auth-listener.tsx` | Reage a logout em outra aba ou sessão expirada; montar no `__root.tsx` |
+
+### De `review_api.py` para o novo login
+
+| Python | Destino |
+|---|---|
+| `GET /login` | `/auth` |
+| `POST /api/login` | `entrarComMicrosoft()` |
+| `POST /api/logout` | `BotaoSair` / `sair()` |
+| `GET /api/me` | `getMe` |
+| `require_auth` | Layout `_authenticated` (navegação) + `authMiddleware` (server functions) |
+| `require_analista` | Layout `_authenticated/analista` (navegação) + RLS `is_analista()` (dados) |
+| `POST /api/alterar-senha`, expiração de 90 dias, política de senha, recuperação de senha | Removidos: regras da conta Microsoft |
+
+### Configuração manual (uma vez)
+
+1. **Azure Portal → Microsoft Entra ID → App registrations → New registration**
+   - Contas: *somente este diretório organizacional* (só a Bernhoeft).
+   - Redirect URI (Web): a URL de callback mostrada no provedor Azure do
+     Lovable Cloud (termina em `/auth/v1/callback`).
+   - Criar um *client secret* e anotar o *Application (client) ID* e o
+     *Directory (tenant) ID*.
+2. **Lovable Cloud → Auth → Providers → Azure (Microsoft)**: ativar e
+   preencher client ID, secret e a URL do tenant
+   (`https://login.microsoftonline.com/<tenant-id>`).
+3. **Desativar** os provedores e-mail/senha, telefone, Google e Apple.
+4. **URLs de redirecionamento permitidas**: incluir `<url-do-app>/auth`
+   (preview e produção).
+
+### Secrets e dependências
+
+- Secrets: `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY`, que o Lovable Cloud
+  já cria ao ser ativado. Nenhum secret novo.
+- Dependências: `@supabase/supabase-js`, `zod`, `lucide-react`,
+  `@tanstack/react-query` (todas JS puras, compatíveis com o runtime edge).
+- Usa os arquivos gerados pelo Lovable `@/integrations/supabase/client` e
+  `@/integrations/supabase/types` (não escritos aqui, conforme a especificação).
+
+### Pendências desta parte
+
+- Montar `<AuthListener />` no `__root.tsx` e criar as páginas `/` e
+  `/analista`: entram na Parte 5 (telas).
+- O código ainda não foi compilado: não há Node/bun nesta máquina. Validar
+  com o build do Lovable ao importar.
