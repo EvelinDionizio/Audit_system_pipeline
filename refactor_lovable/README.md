@@ -14,7 +14,7 @@ desta pasta espelha a raiz do projeto no Lovable: o conteúdo de `supabase/` e
 | 3a. Parecer com Claude + RAG das normas | ✅ pronta |
 | 3b. Integração Checklist Fácil (+ server function de revisão) | ⏳ aguardando definição da API |
 | 5. Telas | ✅ pronta |
-| 6. Exportação Excel | ⏳ |
+| 6. Exportação Excel | ✅ pronta |
 
 ## Parte 1 — Banco
 
@@ -278,4 +278,45 @@ Lovable Cloud. O controle de quem pode usar o sistema continua no banco
   requisição no runtime edge: validar na prática.
 - Nomes de PDF com acentos podem ser recusados pelo Storage; renomear antes
   do envio se acontecer.
+- Código ainda não compilado: validar com o build do Lovable.
+
+## Parte 6 — Exportação Excel
+
+| Arquivo | Papel |
+|---|---|
+| `supabase/migrations/…20261005120000_auditorias_payload.sql` | Coluna `auditorias.payload` (revisão completa) e `registrar_auditoria` com `p_payload` |
+| `src/lib/revisao.server.ts` | Monta e grava o `PayloadRevisao` a cada revisão |
+| `src/lib/analista.server.ts` / `.functions.ts` | `exportacaoAuditorias`: payloads das auditorias pedidas (analista) |
+| `src/lib/exportar-excel.ts` | Gera e baixa a planilha no navegador (`exceljs`) |
+| `src/components/analista/aba-auditorias.tsx` | Botão "Exportar Excel" |
+
+### Do Python para o novo código
+
+| Python | Destino |
+|---|---|
+| `export_excel.py` (script de terminal) | Botão "Exportar Excel" no painel |
+| `load_payloads_from_output` (JSONs de `output/`) | `exportacaoAuditorias` (coluna `auditorias.payload`) |
+| `generate_excel` + `build_resumo` / `build_nao_conformidades` / `build_auditoria` | `exportarExcel` com as mesmas 3 abas |
+| `_extrair_secao(parecer, "Criticidade")` | Campo `criticidade` do parecer estruturado |
+
+### Decisões e mudanças de comportamento
+
+- **Exporta o que está listado na tabela** (mesmos filtros da aba
+  Auditorias), em vez de tudo que estava em `output/`.
+- **Gerada no navegador:** `exceljs` depende de APIs do Node que o runtime
+  edge não tem.
+- **Parecer na planilha** junta as seções (constatação, fundamentação,
+  recomendação, texto do campo); a criticidade vem com a justificativa.
+- **Link na aba Resumo** para a aba de cada auditoria.
+- `sugestoes.tipo` agora segue o `obrigatorio` calculado no parecer
+  (resolve a pendência da Parte 3a).
+
+### Secrets e dependências
+
+- Sem secrets novos. Dependência: `exceljs` (carregada só ao exportar).
+
+### Pendências desta parte
+
+- Auditorias processadas antes desta versão não têm payload e ficam de fora
+  da planilha (o painel avisa); basta revisá-las de novo.
 - Código ainda não compilado: validar com o build do Lovable.
