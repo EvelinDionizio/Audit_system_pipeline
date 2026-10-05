@@ -320,3 +320,128 @@ Lovable Cloud. O controle de quem pode usar o sistema continua no banco
 - Auditorias processadas antes desta versão não têm payload e ficam de fora
   da planilha (o painel avisa); basta revisá-las de novo.
 - Código ainda não compilado: validar com o build do Lovable.
+
+## Build local (fora do Lovable)
+
+O projeto compila e roda localmente com o bun. Os arquivos que o template
+do Lovable traria (`package.json`, `vite.config.ts`, `tsconfig.json`,
+`router.tsx`, componentes shadcn, client e tipos do Supabase) estão nesta
+pasta.
+
+```bash
+bun install
+bun run typecheck   # tsc --noEmit, modo strict da especificação
+bun run build       # vite build (cliente + servidor)
+bun run dev         # http://localhost:3000
+```
+
+- `src/integrations/supabase/types.ts` foi escrito a partir das migrations.
+  No Lovable Cloud (ou com `supabase gen types`) ele é gerado do banco real;
+  substitua quando houver um banco.
+- Sem `.env`, o app abre e a tela de login renderiza, mas login e dados
+  exigem um projeto Supabase. Copie `.env.example` para `.env` e preencha.
+- Versões fixadas: Vite 7 (especificação) e `@vitejs/plugin-react` 5 (a 6
+  exige Vite 8).
+- O TanStack Start atual marca `inputValidator()` como obsoleto em favor de
+  `validator()`. Mantido `inputValidator`, que é o padrão da especificação e
+  do template do Lovable; trocar se o template já usar `validator`.
+
+### Verificado em 2026-10-05
+
+- `bun run typecheck` e `bun run build` sem erros.
+- `bun run dev`: `/` e `/analista` sem sessão redirecionam para `/auth`
+  guardando o destino; a tela de login renderiza com os tokens de design; uma
+  rota inexistente mostra "Página não encontrada".
+- Não testado (precisa de Supabase + Entra ID): login, painel com dados,
+  revisão com IA, upload de normas e exportação Excel.
+
+## Deploy na Vercel + Supabase
+
+O app roda na Vercel; o banco, o login e os arquivos ficam num projeto
+Supabase (a Vercel não hospeda nada disso). O `nitro` no `vite.config.ts` gera
+a saída da Vercel (`.vercel/output`) sozinho quando o build roda lá.
+
+1. **Supabase:** criar o projeto e aplicar as migrations em ordem
+   (`npx supabase link --project-ref <ref>` e `npx supabase db push`, ou colar
+   cada arquivo no SQL Editor).
+2. **Login Microsoft:** seguir a "Configuração manual" da Parte 2, usando o
+   painel do Supabase (Authentication → Providers → Azure). Em
+   Authentication → URL Configuration, usar a URL da Vercel como Site URL e
+   incluir `https://<app>.vercel.app/auth` nas Redirect URLs.
+3. **Vercel:** importar o repositório com **Root Directory =
+   `refactor_lovable`** (o restante é detectado: bun pelo `bun.lock`, build
+   `vite build`). Cadastrar as variáveis do `.env.example` em Settings →
+   Environment Variables.
+4. **Cron de backup:** o `vercel.json` chama `/api/public/backup` todo dia às
+   06:00 UTC (03:00 de Brasília). A Vercel envia o `CRON_SECRET` sozinha.
+
+Notas:
+- O `nitro` (beta, versão fixada) avisa que prefere Vite 8; o build com Vite 7
+  (exigido pela especificação) funciona. Ao importar no Lovable, o plugin
+  `nitro()` pode sair do `vite.config.ts`: o template cuida da hospedagem.
+
+## Backup e restauração
+
+Migration `…130000_backup_restauracao.sql` + `src/lib/backup.server.ts` +
+rotas em `src/routes/api/public/`. O backup é um JSON compactado (gzip) no
+bucket privado `backups`, com todas as tabelas de `public` e os usuários
+(`auth.users` / `auth.identities`). Os ids dos usuários são mantidos, então o
+login Microsoft continua ligado ao histórico depois de restaurar.
+
+| Rota | Token | Faz |
+|---|---|---|
+| `GET/POST /api/public/backup` | `CRON_SECRET` | Gera um backup (o cron diário usa esta). Mantém os `BACKUP_RETENCAO` mais recentes (padrão 30) |
+| `GET /api/public/backups` | `CRON_SECRET` | Lista os backups |
+| `GET /api/public/backups?arquivo=<nome>` | `CRON_SECRET` | Link de download (10 min) |
+| `POST /api/public/restaurar` | `RESTORE_TOKEN` | **Substitui** todos os dados pelo backup. Desligada enquanto `RESTORE_TOKEN` não existir |
+
+```bash
+# backup manual
+curl -X POST -H "Authorization: Bearer $CRON_SECRET" https://<app>/api/public/backup
+
+# restaurar um backup do próprio projeto
+curl -X POST https://<app>/api/public/restaurar \
+  -H "Authorization: Bearer $RESTORE_TOKEN" -H "Content-Type: application/json" \
+  -d '{"arquivo": "backup-2026-10-05T06-00-00-000Z.json.gz", "confirmar": "RESTAURAR"}'
+```
+
+Garantias da restauração:
+- Roda numa transação só: se der erro, nada muda.
+- Antes de restaurar, salva o estado atual como `pre-restauracao-*.json.gz`
+  (fora da retenção), para desfazer.
+- Usuários nunca são apagados, só acrescentados. Se um e-mail do backup já
+  existir com outro id (alguém logou no projeto novo antes da restauração), a
+  restauração é recusada e lista os e-mails, que devem ser removidos em
+  Authentication → Users.
+- Colunas novas recebem o default; colunas que deixaram de existir são
+  ignoradas. Tabela nova precisa entrar em `_ordem` da função
+  `backup_restaurar` se tiver chave estrangeira para outra.
+
+**Não entra no backup:** os PDFs do bucket `normas`. O texto indexado
+(`normas_chunks`) entra, então a busca funciona logo depois. Para ter os PDFs
+no projeto novo, reenvie-os pela aba Configurações.
+
+### Migrar para a Lovable (ou outro projeto Supabase)
+
+1. No projeto novo, aplicar as migrations (no Lovable Cloud elas entram com o
+   código) e configurar o `RESTORE_TOKEN`.
+2. **Antes de qualquer pessoa logar no projeto novo**, gerar o link do último
+   backup no projeto antigo (`/api/public/backups?arquivo=…`) e restaurar no
+   novo com `{"url": "<link>", "confirmar": "RESTAURAR"}`.
+3. Depois de migrar, apagar o `RESTORE_TOKEN` para fechar a rota de novo.
+
+O backup fica no mesmo projeto Supabase: se o projeto for apagado, os backups
+vão junto. Baixe um de tempos em tempos para fora dele.
+
+### Verificado em 2026-10-05 (Supabase local, Docker)
+
+- As 8 migrations aplicam sem erro num banco real (as 7 anteriores nunca
+  tinham sido executadas).
+- Backup → dados alterados/apagados → restauração: contagens iguais às
+  originais em todas as tabelas, triggers religados, ids novos continuam
+  depois do maior restaurado, busca nas normas funcionando.
+- Migração para um projeto vazio: todos os dados e usuários voltam com os
+  mesmos ids e o Auth reconhece os usuários restaurados.
+- Conflito de e-mail: restauração recusada, nada alterado.
+- Rotas sem token, ou com o token errado, respondem 401.
+- `bun run typecheck` e o build com o preset da Vercel sem erros.
