@@ -49,6 +49,10 @@ export type ResultadoRevisao = {
     nivel_conformidade: string;
   };
   sugestoes: { itens: SugestaoRevisao[]; parecer: string };
+  /** false quando a revisão foi gerada mas não pôde ser gravada no banco (não aparece no painel). */
+  salvo: boolean;
+  /** Motivo da falha de gravação, em linguagem clara (null se salvou). */
+  erro_salvar: string | null;
 };
 
 export async function executarRevisao(
@@ -83,7 +87,7 @@ export async function executarRevisao(
     gerado_em: new Date().toISOString(),
   };
 
-  const idsSugestoes = await persistir(admin, evaluationId, userId, auditoria, resultado.itens, payload);
+  const gravacao = await persistir(admin, evaluationId, userId, auditoria, resultado.itens, payload);
 
   return {
     evaluation_id: evaluationId,
@@ -103,16 +107,41 @@ export async function executarRevisao(
     sugestoes: {
       itens: resultado.itens.map((item) => ({
         ...item,
-        sugestao_id: item.item_id === null ? null : (idsSugestoes.get(String(item.item_id)) ?? null),
+        sugestao_id: item.item_id === null ? null : (gravacao.ids.get(String(item.item_id)) ?? null),
       })),
       parecer: resultado.parecer,
     },
+    salvo: gravacao.erro === null,
+    erro_salvar: gravacao.erro,
   };
 }
 
+/** Traduz as falhas mais comuns de gravação para algo que dê para agir. */
+function explicarFalhaDeGravacao(mensagem: string): string {
+  const m = mensagem.toLowerCase();
+  let explicacao: string | null = null;
+
+  if (m.includes("could not find the function") || m.includes("pgrst202") || m.includes("schema cache")) {
+    explicacao =
+      "o banco não tem a função registrar_auditoria na versão esperada (com o parâmetro p_payload). Aplique as migrations pendentes.";
+  } else if (m.includes("missing supabase environment") || m.includes("service_role_key")) {
+    explicacao = "faltam os secrets do Supabase no servidor (SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY).";
+  } else if (m.includes("permission denied") || m.includes("42501")) {
+    explicacao = "o servidor não tem permissão para gravar no banco; confira se usa a chave service_role.";
+  } else if (m.includes("foreign key") || m.includes("23503")) {
+    explicacao = "o usuário logado não existe na tabela de usuários do banco.";
+  } else if (m.includes("does not exist") || m.includes("42p01")) {
+    explicacao = "uma tabela ou coluna esperada não existe no banco. Aplique as migrations pendentes.";
+  }
+
+  const tecnico = mensagem.slice(0, 220);
+  return explicacao ? `${explicacao} (Detalhe: ${tecnico})` : tecnico;
+}
+
 /**
- * Grava auditoria, histórico e sugestões. Igual ao Python, falha aqui não
- * impede de mostrar o resultado: só fica sem feedback por item.
+ * Grava auditoria, histórico e sugestões. Falha aqui não impede de mostrar o
+ * resultado, mas agora é informada na tela (`salvo` / `erro_salvar`): antes
+ * ficava só no log e o painel simplesmente aparecia vazio.
  */
 async function persistir(
   admin: Db,
@@ -121,7 +150,7 @@ async function persistir(
   auditoria: AuditoriaChecklistFacil,
   itens: SugestaoItem[],
   payload: PayloadRevisao,
-): Promise<Map<string, number>> {
+): Promise<{ ids: Map<string, number>; erro: string | null }> {
   try {
     const { data: auditoriaId, error } = await admin.rpc("registrar_auditoria", {
       p_evaluation_id: evaluationId,
@@ -144,13 +173,13 @@ async function persistir(
       throw new Error(erroSugestoes.message);
     }
 
-    return new Map(
-      sugestoes.flatMap((s) => (s.item_id === null ? [] : [[String(s.item_id), s.id] as const])),
-    );
+    return {
+      ids: new Map(sugestoes.flatMap((s) => (s.item_id === null ? [] : [[String(s.item_id), s.id] as const]))),
+      erro: null,
+    };
   } catch (e) {
-    console.warn(
-      `[Revisão] Erro ao gravar a auditoria ${evaluationId}: ${e instanceof Error ? e.message : String(e)}`,
-    );
-    return new Map();
+    const mensagem = e instanceof Error ? e.message : String(e);
+    console.warn(`[Revisão] Erro ao gravar a auditoria ${evaluationId}: ${mensagem}`);
+    return { ids: new Map(), erro: explicarFalhaDeGravacao(mensagem) };
   }
 }

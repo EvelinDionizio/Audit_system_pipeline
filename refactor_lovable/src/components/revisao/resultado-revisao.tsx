@@ -77,6 +77,16 @@ export function ResultadoRevisao({ data }: { data: Resultado }) {
 
   return (
     <div className="space-y-4">
+      {!data.salvo && (
+        <div
+          role="alert"
+          className="rounded-lg border border-warning/40 bg-warning-soft px-4 py-3 text-[13px] leading-normal text-warning"
+        >
+          <strong>Esta revisão não foi salva e não aparecerá no painel.</strong>
+          {data.erro_salvar && <span className="mt-1 block text-foreground">Motivo: {data.erro_salvar}</span>}
+        </div>
+      )}
+
       <Card>
         <CardContent className="flex items-center gap-5 max-sm:flex-col max-sm:text-center">
           <div
