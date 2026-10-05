@@ -445,3 +445,50 @@ vão junto. Baixe um de tempos em tempos para fora dele.
 - Conflito de e-mail: restauração recusada, nada alterado.
 - Rotas sem token, ou com o token errado, respondem 401.
 - `bun run typecheck` e o build com o preset da Vercel sem erros.
+
+## Modo demonstração (SQLite local)
+
+Para apresentar o sistema sem Supabase, sem login Microsoft e sem o
+Checklist Fácil. **Só para uso local**: o modo se recusa a ligar na Vercel.
+
+```bash
+bun install
+bun run demo:normas   # opcional: indexa os PDFs de ../norms no SQLite (~15 s)
+bun run demo          # http://localhost:3000
+```
+
+- **Banco:** SQLite em `.demo/auditoria.sqlite` (fora do git), criado na
+  primeira execução com o schema das migrations, os triggers de pré-cadastro e
+  a trava do último analista. `bun run demo:reset` apaga e recomeça do zero.
+- **Login:** a tela `/auth` lista usuários fictícios (Ana Analista, Bruno
+  Auditor, Carla Souza). Diego Externo aparece como "Não autorizado" no painel.
+- **Auditorias:** #900000001, #900000002 e #900000003 são fictícias e fazem
+  o papel do Checklist Fácil.
+- **IA:** sem `ANTHROPIC_API_KEY` os pareceres são simulados (marcados
+  `[SIMULADO]`). Para usar o Claude de verdade, defina a chave no terminal
+  antes de `bun run demo`; ela não deve ser gravada em `.env.demo`.
+- **Normas:** a busca usa FTS5 (sem os radicais do português do Postgres,
+  então os resultados podem diferir um pouco). O envio de PDF pelo navegador
+  fica desativado; use `bun run demo:normas`.
+- **Sem RLS:** o banco é local e de demonstração; o acesso ao painel continua
+  barrado para quem não é analista.
+
+### Como funciona
+
+Nada nas telas nem nas server functions muda. Com `MODO_DEMO=true`:
+`authMiddleware` aceita a sessão fictícia e entrega um client SQLite
+(`src/lib/demo/cliente-demo.server.ts`) que imita o pedaço do client do
+Supabase usado pelo app; `criarClienteAdmin` usa o mesmo banco; e
+`buscarAuditoriaEstruturada` devolve as auditorias de exemplo.
+
+### Verificado em 2026-10-05
+
+- Login como Ana Analista → revisão da #900000001 (score 55%, 3 NC, 3
+  parciais, 4 conformes) → feedback "Aceitar" gravado.
+- Painel: auditoria listada, KPIs e score por auditor/checklist, Indicadores
+  com 1 sugestão aceita de 10, Usuários com os 4 status, trava do último
+  analista bloqueando a desativação da Ana.
+- 55 normas indexadas (2.899 trechos); na revisão seguinte o item do
+  capacete recuperou a NR-06 e o do cinto, a NR-35. Reprocessamento contado.
+- Planilha gerada a partir do payload salvo, com as 3 abas (testada por
+  script, sem download no navegador).
