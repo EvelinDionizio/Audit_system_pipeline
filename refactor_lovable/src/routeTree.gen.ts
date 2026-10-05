@@ -18,6 +18,7 @@ import { Route as AuthenticatedAnalistaIndexRouteImport } from './routes/_authen
 import { Route as ApiPublicBackupRouteImport } from './routes/api/public/backup'
 import { Route as ApiPublicBackupsRouteImport } from './routes/api/public/backups'
 import { Route as ApiPublicRestaurarRouteImport } from './routes/api/public/restaurar'
+import { Route as ApiPublicSeedRouteImport } from './routes/api/public/seed'
 import { Route as ApiPublicTesteIaRouteImport } from './routes/api/public/teste-ia'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -66,6 +67,11 @@ const ApiPublicRestaurarRoute = ApiPublicRestaurarRouteImport.update({
   path: '/api/public/restaurar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicSeedRoute = ApiPublicSeedRouteImport.update({
+  id: '/api/public/seed',
+  path: '/api/public/seed',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicTesteIaRoute = ApiPublicTesteIaRouteImport.update({
   id: '/api/public/teste-ia',
   path: '/api/public/teste-ia',
@@ -80,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/api/public/backup': typeof ApiPublicBackupRoute
   '/api/public/backups': typeof ApiPublicBackupsRoute
   '/api/public/restaurar': typeof ApiPublicRestaurarRoute
+  '/api/public/seed': typeof ApiPublicSeedRoute
   '/api/public/teste-ia': typeof ApiPublicTesteIaRoute
   '/analista/': typeof AuthenticatedAnalistaIndexRoute
 }
@@ -90,6 +97,7 @@ export interface FileRoutesByTo {
   '/api/public/backup': typeof ApiPublicBackupRoute
   '/api/public/backups': typeof ApiPublicBackupsRoute
   '/api/public/restaurar': typeof ApiPublicRestaurarRoute
+  '/api/public/seed': typeof ApiPublicSeedRoute
   '/api/public/teste-ia': typeof ApiPublicTesteIaRoute
   '/analista': typeof AuthenticatedAnalistaIndexRoute
 }
@@ -103,6 +111,7 @@ export interface FileRoutesById {
   '/api/public/backup': typeof ApiPublicBackupRoute
   '/api/public/backups': typeof ApiPublicBackupsRoute
   '/api/public/restaurar': typeof ApiPublicRestaurarRoute
+  '/api/public/seed': typeof ApiPublicSeedRoute
   '/api/public/teste-ia': typeof ApiPublicTesteIaRoute
   '/_authenticated/analista/': typeof AuthenticatedAnalistaIndexRoute
 }
@@ -116,6 +125,7 @@ export interface FileRouteTypes {
     | '/api/public/backup'
     | '/api/public/backups'
     | '/api/public/restaurar'
+    | '/api/public/seed'
     | '/api/public/teste-ia'
     | '/analista/'
   fileRoutesByTo: FileRoutesByTo
@@ -126,6 +136,7 @@ export interface FileRouteTypes {
     | '/api/public/backup'
     | '/api/public/backups'
     | '/api/public/restaurar'
+    | '/api/public/seed'
     | '/api/public/teste-ia'
     | '/analista'
   id:
@@ -138,6 +149,7 @@ export interface FileRouteTypes {
     | '/api/public/backup'
     | '/api/public/backups'
     | '/api/public/restaurar'
+    | '/api/public/seed'
     | '/api/public/teste-ia'
     | '/_authenticated/analista/'
   fileRoutesById: FileRoutesById
@@ -149,6 +161,7 @@ export interface RootRouteChildren {
   ApiPublicBackupRoute: typeof ApiPublicBackupRoute
   ApiPublicBackupsRoute: typeof ApiPublicBackupsRoute
   ApiPublicRestaurarRoute: typeof ApiPublicRestaurarRoute
+  ApiPublicSeedRoute: typeof ApiPublicSeedRoute
   ApiPublicTesteIaRoute: typeof ApiPublicTesteIaRoute
 }
 
@@ -217,6 +230,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicRestaurarRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/seed': {
+      id: '/api/public/seed'
+      path: '/api/public/seed'
+      fullPath: '/api/public/seed'
+      preLoaderRoute: typeof ApiPublicSeedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/teste-ia': {
       id: '/api/public/teste-ia'
       path: '/api/public/teste-ia'
@@ -261,6 +281,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicBackupRoute: ApiPublicBackupRoute,
   ApiPublicBackupsRoute: ApiPublicBackupsRoute,
   ApiPublicRestaurarRoute: ApiPublicRestaurarRoute,
+  ApiPublicSeedRoute: ApiPublicSeedRoute,
   ApiPublicTesteIaRoute: ApiPublicTesteIaRoute,
 }
 export const routeTree = rootRouteImport

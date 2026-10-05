@@ -445,3 +445,24 @@ vão junto. Baixe um de tempos em tempos para fora dele.
 - Conflito de e-mail: restauração recusada, nada alterado.
 - Rotas sem token, ou com o token errado, respondem 401.
 - `bun run typecheck` e o build com o preset da Vercel sem erros.
+
+## Rotas de implantação
+
+Protegidas pelo `CRON_SECRET` (`Authorization: Bearer <CRON_SECRET>`).
+
+| Rota | Precisa do Supabase | Faz |
+|---|---|---|
+| `GET /api/public/teste-ia` | Não | Gera o parecer de um item de exemplo com o mesmo prompt e schema da revisão (sem normas, sem gravar tokens). Cada chamada custa cerca de US$ 0,02 |
+| `POST /api/public/seed` | Sim | Autoriza um usuário (padrão: `analista`) em `usuarios_autorizados`, para o primeiro acesso ao painel |
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" https://<app>/api/public/teste-ia
+
+curl -X POST https://<app>/api/public/seed \
+  -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/json" \
+  -d '{"email": "fulano@bernhoeft.com.br", "nome": "Fulano"}'
+```
+
+O seed não cria conta nem senha: a pessoa entra em `/auth` com a conta
+Microsoft daquele e-mail e já cai como analista. Se ela já tinha entrado antes
+(perfil inativo), o papel é aplicado na hora. Verificado no Supabase local.
