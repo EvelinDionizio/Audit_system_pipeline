@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { modoDemo } from "@/lib/demo/modo.server";
 
 /**
  * Acesso à API do Claude (substitui _chamar_claude e registrar_uso_tokens).
@@ -12,18 +13,26 @@ type Esforco = "low" | "medium" | "high";
 export type ConfigClaude = {
   modelo: string;
   esforco: Esforco;
-  /** PARECER_MOCK=true ou sem ANTHROPIC_API_KEY: gera pareceres simulados. */
+  /** PARECER_MOCK=true, ou demonstração local sem ANTHROPIC_API_KEY: gera pareceres simulados. */
   mock: boolean;
   concorrencia: number;
   topK: number;
 };
 
-// USD por 1M tokens. Cache: escrita custa 1,25x o input, leitura 0,1x.
-const PRECOS: Record<string, { input: number; output: number }> = {
-  "claude-opus-5-5": { input: 4, output: 20 },
-  "claude-sonnet-5-5": { input: 2, output: 10 },
-  "claude-sonnet-4-6": { input: 3, output: 15 },
+// USD por 1M tokens (tabela de preços da Anthropic, conferida em 2026-10).
+// Cache: escrita custa 1,25x o input; leitura custa 0,1x, exceto nos modelos
+// que têm preço próprio de leitura (cacheLeitura, em USD por 1M tokens).
+// Inclui os modelos de fallback: a resposta pode vir de outro modelo que o configurado.
+type Preco = { input: number; output: number; cacheLeitura?: number };
+const PRECOS: Record<string, Preco> = {
+  "claude-fable-5-1": { input: 10, output: 50, cacheLeitura: 0.25 },
+  "claude-fable-5": { input: 10, output: 50, cacheLeitura: 0.25 },
+  "claude-opus-5-5": { input: 4, output: 20, cacheLeitura: 0.2 },
+  "claude-opus-5": { input: 5, output: 25 },
   "claude-opus-4-8": { input: 5, output: 25 },
+  "claude-sonnet-5-5": { input: 2, output: 10, cacheLeitura: 0.2 },
+  "claude-sonnet-5": { input: 2, output: 10 },
+  "claude-sonnet-4-6": { input: 3, output: 15 },
   "claude-haiku-4-5": { input: 1, output: 5 },
 };
 
@@ -42,10 +51,21 @@ function inteiroDoEnv(nome: string, padrao: number): number {
 
 export function lerConfigClaude(): ConfigClaude {
   const esforco = process.env["PARECER_ESFORCO"];
+
+  // Parecer simulado só quando alguém pede (PARECER_MOCK=true) ou na demonstração
+  // local. Sem a chave em produção, falha: antes os pareceres saíam "[SIMULADO]",
+  // eram gravados e a tela mostrava a revisão como salva, sem aviso.
+  const mock = process.env["PARECER_MOCK"] === "true";
+  if (!mock && !process.env["ANTHROPIC_API_KEY"] && !modoDemo()) {
+    throw new Error(
+      "A chave da Anthropic não está configurada: defina o secret ANTHROPIC_API_KEY no servidor (ou PARECER_MOCK=true só para testes).",
+    );
+  }
+
   return {
     modelo: process.env["MODELO_CLAUDE"] || "claude-opus-5-5",
     esforco: esforco === "low" || esforco === "high" ? esforco : "medium",
-    mock: process.env["PARECER_MOCK"] === "true" || !process.env["ANTHROPIC_API_KEY"],
+    mock: mock || !process.env["ANTHROPIC_API_KEY"],
     concorrencia: inteiroDoEnv("PARECER_CONCORRENCIA", 4),
     topK: inteiroDoEnv("RAG_TOP_K", 3),
   };
@@ -106,8 +126,12 @@ export async function chamarClaude(
   const cacheEscrita = u.cache_creation_input_tokens ?? 0;
   const cacheLeitura = u.cache_read_input_tokens ?? 0;
   const preco = PRECOS[resposta.model];
+  if (!preco) {
+    console.warn(`[Claude] Sem preço para o modelo "${resposta.model}": custo_usd fica nulo e o total de custo é subestimado.`);
+  }
   const custoUsd = preco
-    ? ((u.input_tokens + cacheEscrita * 1.25 + cacheLeitura * 0.1) * preco.input +
+    ? ((u.input_tokens + cacheEscrita * 1.25) * preco.input +
+        cacheLeitura * (preco.cacheLeitura ?? preco.input * 0.1) +
         u.output_tokens * preco.output) /
       1_000_000
     : null;

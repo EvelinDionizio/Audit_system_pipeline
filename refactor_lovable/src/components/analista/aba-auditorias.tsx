@@ -28,7 +28,8 @@ export function AbaAuditorias() {
   const [historicoDe, setHistoricoDe] = useState<number | null>(null);
 
   const filtro = {
-    status: status.split(",").map(Number),
+    // "" = todos os status (a lista vazia não filtra por status).
+    status: status ? status.split(",").map(Number) : [],
     limite,
     ...(de ? { de } : {}),
     ...(ate ? { ate } : {}),
@@ -106,7 +107,7 @@ export function AbaAuditorias() {
           <option value="2">Em Andamento</option>
           <option value="3">Em Análise</option>
           <option value="6">Concluído</option>
-          <option value="2,3,6">Todos</option>
+          <option value="">Todos</option>
         </select>
         <select aria-label="Quantidade" className={campoCls} value={limite} onChange={(e) => setLimite(Number(e.target.value))}>
           <option value={10}>Últimas 10</option>
