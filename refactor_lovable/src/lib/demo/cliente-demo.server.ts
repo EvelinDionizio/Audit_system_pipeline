@@ -123,6 +123,14 @@ class Consulta implements PromiseLike<Resultado> {
     }
     return this;
   }
+  gte(coluna: string, valor: unknown) {
+    this.filtros.push({ sql: `${ident(coluna)} >= ?`, params: [paraBanco(valor)] });
+    return this;
+  }
+  lte(coluna: string, valor: unknown) {
+    this.filtros.push({ sql: `${ident(coluna)} <= ?`, params: [paraBanco(valor)] });
+    return this;
+  }
   order(coluna: string, opcoes?: { ascending?: boolean; nullsFirst?: boolean }) {
     const asc = opcoes?.ascending ?? true;
     // Mesmo padrão do Postgres: nulls por último no asc, primeiro no desc.

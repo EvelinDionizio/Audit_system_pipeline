@@ -66,6 +66,8 @@ export async function executarRevisao(
     throw new Error("Seu acesso ainda não foi liberado por um analista.");
   }
 
+  await exigirTitularOuAnalista(db, admin, userId, evaluationId);
+
   const auditoria = await buscarAuditoriaEstruturada(evaluationId);
   const { cabecalho, resumo } = auditoria;
 
@@ -114,6 +116,32 @@ export async function executarRevisao(
     salvo: gravacao.erro === null,
     erro_salvar: gravacao.erro,
   };
+}
+
+/**
+ * Uma auditoria já revisada pertence a quem a revisou: o reprocessamento troca
+ * o titular e o antigo perderia a visão dela. Só o titular (ou um analista)
+ * pode reprocessar. A checagem vem antes de qualquer chamada paga ao Claude.
+ */
+async function exigirTitularOuAnalista(db: Db, admin: Db, userId: string, evaluationId: number) {
+  const existente = await admin
+    .from("auditorias")
+    .select("user_id")
+    .eq("evaluation_id", evaluationId)
+    .limit(1);
+  if (existente.error) {
+    throw new Error(`Erro ao verificar a auditoria: ${existente.error.message}`);
+  }
+
+  const titular = existente.data[0]?.user_id;
+  if (!titular || titular === userId) return;
+
+  const analista = await db.rpc("is_analista", { _user_id: userId });
+  if (analista.error || !analista.data) {
+    throw new Error(
+      "Esta auditoria já foi revisada por outro usuário. Somente quem a revisou, ou um analista, pode reprocessá-la.",
+    );
+  }
 }
 
 /** Traduz as falhas mais comuns de gravação para algo que dê para agir. */

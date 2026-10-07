@@ -534,3 +534,18 @@ Python com os mesmos dados: resultado idêntico (exceto a correção das palavra
 - Fora desta parte: botão "Processar pendentes" (lote, usa a API de
   Analytics) e aplicação das regras de `config_itens` na revisão (o Python
   também não as aplicava na revisão).
+
+## Correções da revisão de código (2026-10)
+
+Pontos apontados numa revisão externa e corrigidos aqui:
+
+- **Erro de digitação** (`temErroOrtografico`): "instrução", "construção", "obstruída", "transporte" e afins não são mais marcados; siglas em maiúsculas (PCMSO, SESMT) também não.
+- **Texto livre sem nota:** negações ("não existe", "não apresentado", "sem ... adequado") e antônimos ("inadequado") viram não conforme em vez de conforme. Palavras de conformidade só valem no começo da palavra.
+- **Titularidade:** só quem revisou uma auditoria, ou um analista, pode reprocessá-la; antes, qualquer usuário ativo a "roubava". A checagem vem antes das chamadas pagas ao Claude.
+- **Chave da Anthropic:** sem `ANTHROPIC_API_KEY` a revisão falha com mensagem clara (só `PARECER_MOCK=true` ou a demonstração local simulam).
+- **Painel:** o limite de 500 vale depois dos filtros (status e datas vão para o banco); "Todos" inclui todos os status.
+- **Custo:** preços de Fable e demais modelos de fallback, e desconto de leitura de cache por modelo.
+- **Score:** código de resposta desconhecido não conta mais como zero ponto; a criticidade tem uma implementação só (`src/lib/criticidade.ts`).
+- **Testes:** `bun run test` cobre ortografia, negações e score (`tests/`).
+
+Ainda em aberto: limite de uso por usuário/auditoria (cada clique gera chamadas pagas), revisão em segundo plano com fila (hoje roda numa só requisição), vínculo entre o auditor do Checklist Fácil e o usuário, e `user_roles` não ser limpo ao remover o acesso.

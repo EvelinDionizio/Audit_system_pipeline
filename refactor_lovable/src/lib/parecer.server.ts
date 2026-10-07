@@ -9,6 +9,7 @@ import {
   mapComLimite,
   registrarUso,
 } from "@/lib/claude.server";
+import { criticidadeMarcada } from "@/lib/criticidade";
 import { type TrechoNorma, buscarNormas } from "@/lib/normas.server";
 
 /**
@@ -160,13 +161,15 @@ function consultaDoItem(item: ItemAuditoria): string {
 
 // ── Regras de negócio portadas do Python ─────────────────────────────────────
 
+// Grupos de consoantes que o português permite mesmo somando 4 ou mais: "nstr"
+// (instrução, construção), "bstr" (obstruída), "nspr" (transporte), "nscr"
+// (inscrição), "rspc" (perspectiva). Saem da conta antes de procurar o resto.
+const GRUPO_CONSOANTES_VALIDO = /[bmnr]s[cpt][lrc]?/g;
+
 /** Heurística de erro de digitação no texto do auditor (_tem_erro_ortografico). */
 export function temErroOrtografico(item: ItemAuditoria): boolean {
-  const texto = [item.comentario, item.resposta_texto]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase()
-    .trim();
+  const original = [item.comentario, item.resposta_texto].filter(Boolean).join(" ").trim();
+  const texto = original.toLowerCase();
   if (texto.length < 3) return false;
 
   const padroes = [
@@ -177,19 +180,18 @@ export function temErroOrtografico(item: ItemAuditoria): boolean {
   ];
   if (padroes.some((padrao) => padrao.test(texto))) return true;
 
-  // Sequências de consoantes impossíveis em português.
-  return texto.split(/\s+/).some((palavra) => {
-    const limpa = palavra.replace(/[^a-záéíóúãõâêîôûàèìòùç]/g, "");
+  // Sequências de consoantes impossíveis em português. Siglas em maiúsculas
+  // (PCMSO, SESMT) não contam, e os grupos válidos acima são descontados.
+  return original.split(/\s+/).some((palavra) => {
+    const letras = palavra.replace(/[^\p{L}]/gu, "");
+    if (letras.length > 1 && letras === letras.toUpperCase()) return false;
+
+    const limpa = letras
+      .toLowerCase()
+      .replace(/[^a-záéíóúãõâêîôûàèìòùç]/g, "")
+      .replace(GRUPO_CONSOANTES_VALIDO, "a");
     return limpa.length > 4 && /[bcdfghjklmnpqrstvwxyz]{4,}/.test(limpa);
   });
-}
-
-/** Criticidade do checklist, lida do nome da pergunta. */
-function criticidadeDaPergunta(pergunta: string): CriticidadeChecklist {
-  if (pergunta.includes("(Mandatório)")) return "Mandatório";
-  if (pergunta.includes("(Importantes)")) return "Importantes";
-  if (pergunta.includes("(Desejáveis)")) return "Desejáveis";
-  return "";
 }
 
 function precisaParecer(item: ItemAuditoria): boolean {
@@ -343,7 +345,7 @@ export async function gerarParecer(payload: PayloadAuditoria, ctx: Contexto): Pr
   );
 
   const sugestoes: SugestaoItem[] = gerados.map(({ item, parecer, erro }) => {
-    const criticidade = criticidadeDaPergunta(item.pergunta ?? "");
+    const criticidade: CriticidadeChecklist = criticidadeMarcada(item.pergunta ?? "") ?? "";
     return {
       item_id: item.id ?? null,
       categoria: item.categoria ?? "",

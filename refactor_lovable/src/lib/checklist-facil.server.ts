@@ -1,3 +1,4 @@
+import { type Criticidade, criticidadeDaPergunta } from "@/lib/criticidade";
 import { avaliacaoBrutaDeExemplo } from "@/lib/demo/auditorias-exemplo.server";
 import { modoDemo } from "@/lib/demo/modo.server";
 import type { ItemAuditoria } from "@/lib/parecer.server";
@@ -31,7 +32,7 @@ export type CabecalhoChecklistFacil = {
   comentario_final: string;
 };
 
-export type Criticidade = "Mandatório" | "Importantes" | "Desejáveis";
+export type { Criticidade };
 
 export type ItemChecklistFacil = ItemAuditoria & {
   criticidade: Criticidade;
@@ -87,6 +88,7 @@ const PESO: Record<Criticidade, number> = { Mandatório: 3, Importantes: 2, Dese
 const PALAVRAS_NAO_CONFORME = [
   "não conforme", "nao conforme", "nc", "reprovado", "não atende", "nao atende",
   "não possui", "nao possui", "ausente", "inexistente", "irregular", "pendente",
+  "inadequad", "desatualizad", "incorret",
 ];
 const PALAVRAS_PARCIAL = [
   "parcial", "parciallment", "incompleto", "em parte", "parcialmente", "insuficiente", "em andamento",
@@ -108,19 +110,42 @@ function contemPalavra(texto: string, palavra: string): boolean {
 
 const contem = (texto: string, palavras: string[]) => palavras.some((p) => contemPalavra(texto, p));
 
+// Negação até 3 palavras antes de uma palavra de conformidade inverte o sentido:
+// "não existe plano", "documento não apresentado", "sem extintor adequado".
+const NEGACOES = new Set(["não", "nao", "sem", "nenhum", "nenhuma", "nunca", "jamais", "falta", "faltam", "ausência", "ausencia"]);
+const JANELA_NEGACAO = 3;
+
+/**
+ * Palavras de conformidade só valem no começo da palavra do texto ("inadequado"
+ * e "irregular" não contam como "adequado" e "regular"), e uma negação por perto
+ * as torna não conformidade. Devolve o que foi afirmado e o que foi negado.
+ */
+function lerPalavrasDeConformidade(texto: string): { afirmado: boolean; negado: boolean } {
+  const palavras = texto.split(new RegExp(`${SEPARADOR}+`, "u")).filter(Boolean);
+  let afirmado = false;
+  let negado = false;
+
+  palavras.forEach((palavra, i) => {
+    const bate = PALAVRAS_CONFORME.some((p) =>
+      p.length > MAX_PALAVRA_CURTA ? palavra.startsWith(p) : palavra === p,
+    );
+    if (!bate) return;
+    const antes = palavras.slice(Math.max(0, i - JANELA_NEGACAO), i);
+    if (antes.some((a) => NEGACOES.has(a))) negado = true;
+    else afirmado = true;
+  });
+
+  return { afirmado, negado };
+}
+
 function detectarConformidadeTexto(texto: string) {
   const t = texto.toLowerCase().trim();
   if (!t) return { naoConforme: false, parcial: false, conforme: false };
-  const naoConforme = contem(t, PALAVRAS_NAO_CONFORME);
+  const { afirmado, negado } = lerPalavrasDeConformidade(t);
+  const naoConforme = contem(t, PALAVRAS_NAO_CONFORME) || negado;
   const parcial = contem(t, PALAVRAS_PARCIAL) && !naoConforme;
-  const conforme = contem(t, PALAVRAS_CONFORME) && !naoConforme && !parcial;
+  const conforme = afirmado && !naoConforme && !parcial;
   return { naoConforme, parcial, conforme };
-}
-
-function criticidadeDaPergunta(pergunta: string): Criticidade {
-  if (pergunta.includes("(Mandatório)")) return "Mandatório";
-  if (pergunta.includes("(Importantes)")) return "Importantes";
-  return "Desejáveis";
 }
 
 
@@ -213,10 +238,9 @@ function montarResumo(itens: ItemChecklistFacil[]): ResumoAuditoria {
   const naoConformes = itens.filter((i) => i.nao_conforme).length;
   const parciais = itens.filter((i) => i.parcial).length;
 
-  // Score ponderado: itens de texto livre também entram no cálculo.
-  const avaliados = itens.filter(
-    (i) => !i.nao_aplicavel && (i.resposta_codigo !== null || i.nao_conforme || i.parcial || i.conforme),
-  );
+  // Score ponderado: itens de texto livre também entram no cálculo. Só conta
+  // quem foi classificado: um código de resposta desconhecido não vira "zero ponto".
+  const avaliados = itens.filter((i) => !i.nao_aplicavel && (i.nao_conforme || i.parcial || i.conforme));
   const somaPesos = avaliados.reduce((s, i) => s + i.peso, 0);
   const somaPontos = avaliados.reduce((s, i) => s + i.peso * (i.conforme ? 1 : i.parcial ? 0.5 : 0), 0);
   const percentual = somaPesos > 0 ? Math.round((somaPontos / somaPesos) * 1000) / 10 : null;
