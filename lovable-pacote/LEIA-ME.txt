@@ -1,0 +1,16 @@
+Pacote para o projeto do Lovable (correcoes da revisao de codigo).
+
+Cole cada arquivo INTEIRO por cima do arquivo de mesmo caminho no Lovable
+(o caminho abaixo comeca em src/). Um arquivo e novo: criticidade.ts.
+
+  src/lib/criticidade.ts                       (NOVO)
+  src/lib/parecer.server.ts
+  src/lib/claude.server.ts
+  src/lib/checklist-facil.server.ts
+  src/lib/revisao.server.ts
+  src/lib/analista.server.ts
+  src/components/analista/aba-auditorias.tsx
+  src/test/regras-de-revisao.test.ts           (opcional: testes)
+
+Nao precisa de migration nem de nenhum outro arquivo.
+Antes de publicar, confira que o secret ANTHROPIC_API_KEY esta definido no Lovable.
