@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   alterarSenhaPropria,
   criarAcessoExterno,
+  redefinirMfaExterno,
   redefinirSenhaExterno,
 } from "@/lib/acesso-externo.server";
 import { analistaMiddleware, authBasicoMiddleware } from "@/lib/auth-middleware";
@@ -21,6 +22,12 @@ export const redefinirSenhaExternoFn = createServerFn({ method: "POST" })
   .middleware([analistaMiddleware])
   .inputValidator((d: unknown) => z.object({ email: z.string().trim().email() }).parse(d))
   .handler(({ data }) => redefinirSenhaExterno(criarClienteAdmin(), data.email));
+
+/** Analista: remove o autenticador de um externo que perdeu o celular (ele cadastra outro no próximo login). */
+export const redefinirMfaExternoFn = createServerFn({ method: "POST" })
+  .middleware([analistaMiddleware])
+  .inputValidator((d: unknown) => z.object({ email: z.string().trim().email() }).parse(d))
+  .handler(({ data }) => redefinirMfaExterno(criarClienteAdmin(), data.email));
 
 /**
  * Externo: troca a própria senha. Usa o middleware básico de propósito: quem
