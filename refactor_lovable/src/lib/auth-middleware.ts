@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { obterSessao } from "@/lib/auth-client";
 import { exigirAnalista } from "@/lib/auth.server";
+import { aalDoToken, mfaPendente } from "@/lib/mfa";
 import { senhaVencida } from "@/lib/senha";
 import { criarClienteDemo } from "@/lib/demo/cliente-demo.server";
 import { PREFIXO_TOKEN_DEMO, modoDemo } from "@/lib/demo/modo.server";
@@ -19,9 +20,11 @@ type MotivoTrocaSenha = "provisoria" | "vencida" | null;
  *
  * Dois níveis:
  *   - authBasicoMiddleware: só exige sessão válida. Usado apenas por "quem sou
- *     eu" e "trocar senha", que precisam funcionar mesmo com a senha provisória.
+ *     eu" e "trocar senha", que precisam funcionar mesmo com a senha provisória
+ *     ou sem o MFA concluído.
  *   - authMiddleware: o padrão do sistema. Além da sessão, barra quem ainda
- *     está com a senha provisória (o bloqueio vale no servidor, não só na tela).
+ *     está com a senha provisória/vencida ou, sendo externo, sem MFA (aal2).
+ *     O bloqueio vale no servidor, não só na tela.
  *
  * Uso: createServerFn(...).middleware([authMiddleware]).handler(({ context }) => ...)
  */
@@ -48,6 +51,7 @@ export const authBasicoMiddleware = createMiddleware({ type: "function" })
           userId: token.slice(PREFIXO_TOKEN_DEMO.length),
           deveTrocarSenha: false,
           motivoTrocaSenha: null as MotivoTrocaSenha,
+          faltaMfa: false,
         },
       });
     }
@@ -82,12 +86,16 @@ export const authBasicoMiddleware = createMiddleware({ type: "function" })
     const provisoria = perfil.data?.deve_trocar_senha ?? false;
     const vencida = perfil.data ? senhaVencida(perfil.data) : false;
 
+    // O token já foi validado acima; o nível (aal1/aal2) vem dele, não do cliente.
+    const faltaMfa = perfil.data ? mfaPendente(perfil.data, aalDoToken(token)) : false;
+
     return next({
       context: {
         supabase: db,
         userId: data.user.id,
         deveTrocarSenha: provisoria || vencida,
         motivoTrocaSenha: (provisoria ? "provisoria" : vencida ? "vencida" : null) as MotivoTrocaSenha,
+        faltaMfa,
       },
     });
   });
@@ -101,6 +109,9 @@ export const authMiddleware = createMiddleware({ type: "function" })
           ? "Sua senha venceu (validade de 90 dias). Troque a senha antes de continuar."
           : "Troque a senha provisória antes de continuar.",
       );
+    }
+    if (context.faltaMfa) {
+      throw new Error("Confirme o código do autenticador (MFA) antes de continuar.");
     }
     return next();
   });

@@ -13,6 +13,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AcessoPendenteRouteImport } from './routes/acesso-pendente'
 import { Route as AlterarSenhaRouteImport } from './routes/alterar-senha'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as MfaRouteImport } from './routes/mfa'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedAnalistaRouteRouteImport } from './routes/_authenticated/analista/route'
 import { Route as AuthenticatedAnalistaIndexRouteImport } from './routes/_authenticated/analista/index'
@@ -37,6 +38,11 @@ const AlterarSenhaRoute = AlterarSenhaRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MfaRoute = MfaRouteImport.update({
+  id: '/mfa',
+  path: '/mfa',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
@@ -77,6 +83,7 @@ export interface FileRoutesByFullPath {
   '/acesso-pendente': typeof AcessoPendenteRoute
   '/alterar-senha': typeof AlterarSenhaRoute
   '/auth': typeof AuthRoute
+  '/mfa': typeof MfaRoute
   '/analista': typeof AuthenticatedAnalistaRouteRouteWithChildren
   '/api/public/backup': typeof ApiPublicBackupRoute
   '/api/public/backups': typeof ApiPublicBackupsRoute
@@ -87,6 +94,7 @@ export interface FileRoutesByTo {
   '/acesso-pendente': typeof AcessoPendenteRoute
   '/alterar-senha': typeof AlterarSenhaRoute
   '/auth': typeof AuthRoute
+  '/mfa': typeof MfaRoute
   '/': typeof AuthenticatedIndexRoute
   '/api/public/backup': typeof ApiPublicBackupRoute
   '/api/public/backups': typeof ApiPublicBackupsRoute
@@ -99,6 +107,7 @@ export interface FileRoutesById {
   '/acesso-pendente': typeof AcessoPendenteRoute
   '/alterar-senha': typeof AlterarSenhaRoute
   '/auth': typeof AuthRoute
+  '/mfa': typeof MfaRoute
   '/_authenticated/analista': typeof AuthenticatedAnalistaRouteRouteWithChildren
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/api/public/backup': typeof ApiPublicBackupRoute
@@ -113,6 +122,7 @@ export interface FileRouteTypes {
     | '/acesso-pendente'
     | '/alterar-senha'
     | '/auth'
+    | '/mfa'
     | '/analista'
     | '/api/public/backup'
     | '/api/public/backups'
@@ -123,6 +133,7 @@ export interface FileRouteTypes {
     | '/acesso-pendente'
     | '/alterar-senha'
     | '/auth'
+    | '/mfa'
     | '/'
     | '/api/public/backup'
     | '/api/public/backups'
@@ -134,6 +145,7 @@ export interface FileRouteTypes {
     | '/acesso-pendente'
     | '/alterar-senha'
     | '/auth'
+    | '/mfa'
     | '/_authenticated/analista'
     | '/_authenticated/'
     | '/api/public/backup'
@@ -147,6 +159,7 @@ export interface RootRouteChildren {
   AcessoPendenteRoute: typeof AcessoPendenteRoute
   AlterarSenhaRoute: typeof AlterarSenhaRoute
   AuthRoute: typeof AuthRoute
+  MfaRoute: typeof MfaRoute
   ApiPublicBackupRoute: typeof ApiPublicBackupRoute
   ApiPublicBackupsRoute: typeof ApiPublicBackupsRoute
   ApiPublicRestaurarRoute: typeof ApiPublicRestaurarRoute
@@ -180,6 +193,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mfa': {
+      id: '/mfa'
+      path: '/mfa'
+      fullPath: '/mfa'
+      preLoaderRoute: typeof MfaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/': {
@@ -259,6 +279,7 @@ const rootRouteChildren: RootRouteChildren = {
   AcessoPendenteRoute: AcessoPendenteRoute,
   AlterarSenhaRoute: AlterarSenhaRoute,
   AuthRoute: AuthRoute,
+  MfaRoute: MfaRoute,
   ApiPublicBackupRoute: ApiPublicBackupRoute,
   ApiPublicBackupsRoute: ApiPublicBackupsRoute,
   ApiPublicRestaurarRoute: ApiPublicRestaurarRoute,

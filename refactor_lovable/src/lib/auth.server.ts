@@ -17,6 +17,8 @@ export type UsuarioAtual = {
   senha_vencida: boolean;
   /** Dias até a senha vencer; null para quem entra pela Microsoft. */
   dias_para_senha_vencer: number | null;
+  /** Externo cuja sessão ainda não passou pelo MFA: precisa cadastrar ou informar o código. */
+  mfa_pendente: boolean;
   /** null = ainda não autorizado por um analista. */
   papel: Papel | null;
 };
@@ -28,6 +30,7 @@ export type UsuarioAtual = {
 export async function getUsuarioAtual(
   db: SupabaseClient<Database>,
   userId: string,
+  faltaMfa: boolean,
 ): Promise<UsuarioAtual> {
   const [perfil, papeis] = await Promise.all([
     db
@@ -59,6 +62,7 @@ export async function getUsuarioAtual(
     ...dados,
     deve_trocar_senha: dados.deve_trocar_senha || vencida,
     senha_vencida: vencida,
+    mfa_pendente: faltaMfa,
     dias_para_senha_vencer: dados.tipo_acesso === "senha" ? diasParaSenhaVencer(senha_alterada_em) : null,
     papel,
   };

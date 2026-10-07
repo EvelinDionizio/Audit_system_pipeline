@@ -124,6 +124,34 @@ export async function redefinirSenhaExterno(admin: Db, email: string): Promise<{
 }
 
 
+/**
+ * Remove os autenticadores de um externo (perdeu o celular). No próximo login ele
+ * cadastra um novo; até lá, o banco e o servidor seguem exigindo o MFA.
+ */
+export async function redefinirMfaExterno(admin: Db, email: string): Promise<{ removidos: number }> {
+  const perfil = await admin
+    .from("profiles")
+    .select("id, tipo_acesso")
+    .eq("email", normalizarEmail(email))
+    .maybeSingle();
+  if (perfil.error) throw new Error(`Erro ao buscar o usuário: ${perfil.error.message}`);
+  if (!perfil.data) throw new Error("Usuário não encontrado.");
+  if (perfil.data.tipo_acesso !== "senha") {
+    throw new Error("Só contas de acesso externo têm MFA próprio; este usuário entra pela Microsoft.");
+  }
+
+  const userId = perfil.data.id;
+  const lista = await admin.auth.admin.mfa.listFactors({ userId });
+  if (lista.error) throw new Error(`Erro ao listar os autenticadores: ${lista.error.message}`);
+
+  for (const fator of lista.data.factors) {
+    const remocao = await admin.auth.admin.mfa.deleteFactor({ id: fator.id, userId });
+    if (remocao.error) throw new Error(`Erro ao remover o autenticador: ${remocao.error.message}`);
+  }
+  return { removidos: lista.data.factors.length };
+}
+
+
 // ── Externo: trocar a própria senha ──────────────────────────────────────────
 
 export async function alterarSenhaPropria(

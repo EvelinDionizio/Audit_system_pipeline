@@ -6,10 +6,10 @@ import { getUsuarioAtual } from "@/lib/auth.server";
 export type { Papel, UsuarioAtual } from "@/lib/auth.server";
 
 // Middleware básico: quem está com a senha provisória precisa conseguir
-// carregar o próprio perfil para ser levado à tela de troca de senha.
+// carregar o próprio perfil para ser levado à tela de troca de senha ou de MFA.
 export const getMe = createServerFn({ method: "GET" })
   .middleware([authBasicoMiddleware])
-  .handler(async ({ context }) => getUsuarioAtual(context.supabase, context.userId));
+  .handler(async ({ context }) => getUsuarioAtual(context.supabase, context.userId, context.faltaMfa));
 
 export const meQueryKey = ["me"] as const;
 
