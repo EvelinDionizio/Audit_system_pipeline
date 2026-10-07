@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Clock, Copy, KeyRound, Plus, RefreshCw, UserPlus } from "lucide-react";
+import { Check, Clock, Copy, KeyRound, Plus, RefreshCw, ShieldOff, UserPlus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -21,7 +21,11 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { criarAcessoExternoFn, redefinirSenhaExternoFn } from "@/lib/acesso-externo.functions";
+import {
+  criarAcessoExternoFn,
+  redefinirMfaExternoFn,
+  redefinirSenhaExternoFn,
+} from "@/lib/acesso-externo.functions";
 import {
   type UsuarioPainel,
   autorizarUsuario,
@@ -33,7 +37,7 @@ import {
 import { fmtDataBR } from "@/lib/format";
 import { Filtros, Tabela, campoCls, textoErro } from "./ui";
 
-type Confirmacao = { tipo: "perfil" | "remover"; usuario: UsuarioPainel } | null;
+type Confirmacao = { tipo: "perfil" | "remover" | "mfa"; usuario: UsuarioPainel } | null;
 
 const formSchema = z.object({
   nome: z.string().trim().min(1, "Informe o nome."),
@@ -90,6 +94,16 @@ export function AbaUsuarios({ onTotal }: { onTotal: (total: number) => void }) {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+  const redefinirMfa = useMutation({
+    mutationFn: (u: UsuarioPainel) => redefinirMfaExternoFn({ data: { email: u.email } }),
+    onSuccess: ({ removidos }, u) =>
+      toast.success(
+        removidos > 0
+          ? `MFA de ${u.nome} redefinido. Ele cadastra o autenticador de novo no próximo login.`
+          : `${u.nome} ainda não tinha autenticador cadastrado.`,
+      ),
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   function confirmar() {
     if (!confirmacao) return;
@@ -97,6 +111,8 @@ export function AbaUsuarios({ onTotal }: { onTotal: (total: number) => void }) {
     setConfirmacao(null);
     if (tipo === "remover") {
       remover.mutate(u.email);
+    } else if (tipo === "mfa") {
+      redefinirMfa.mutate(u);
     } else {
       autorizar.mutate({ nome: u.nome, email: u.email, perfil: u.perfil === "analista" ? "auditor" : "analista" });
     }
@@ -180,6 +196,14 @@ export function AbaUsuarios({ onTotal }: { onTotal: (total: number) => void }) {
                       >
                         <KeyRound /> Redefinir senha
                       </Button>
+                      <Button
+                        variant="secondary"
+                        size="xs"
+                        disabled={redefinirMfa.isPending}
+                        onClick={() => setConfirmacao({ tipo: "mfa", usuario: u })}
+                      >
+                        <ShieldOff /> Redefinir MFA
+                      </Button>
                     </>
                   ) : !u.autorizado ? (
                     <Button
@@ -243,11 +267,19 @@ export function AbaUsuarios({ onTotal }: { onTotal: (total: number) => void }) {
       <AlertDialog open={confirmacao !== null} onOpenChange={(aberto) => !aberto && setConfirmacao(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{confirmacao?.tipo === "remover" ? "Remover acesso" : "Trocar perfil"}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {confirmacao?.tipo === "remover"
+                ? "Remover acesso"
+                : confirmacao?.tipo === "mfa"
+                  ? "Redefinir MFA"
+                  : "Trocar perfil"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
               {confirmacao?.tipo === "remover"
                 ? `Remover o acesso de ${confirmacao.usuario.nome}? A conta fica desativada até ser autorizada de novo.`
-                : confirmacao &&
+                : confirmacao?.tipo === "mfa"
+                  ? `Remover o autenticador de ${confirmacao.usuario.nome}? Use só depois de confirmar a identidade da pessoa (por exemplo, por telefone). No próximo login ela cadastra um autenticador novo.`
+                  : confirmacao &&
                   `Trocar ${confirmacao.usuario.nome} de ${confirmacao.usuario.perfil} para ${
                     confirmacao.usuario.perfil === "analista" ? "auditor" : "analista"
                   }?`}

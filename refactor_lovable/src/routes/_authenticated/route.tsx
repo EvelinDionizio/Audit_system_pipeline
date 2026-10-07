@@ -22,6 +22,10 @@ export const Route = createFileRoute("/_authenticated")({
     if (me.deve_trocar_senha) {
       throw redirect({ to: "/alterar-senha" });
     }
+    // Externo: além da senha, exige o código do autenticador (cadastro no primeiro acesso).
+    if (me.mfa_pendente) {
+      throw redirect({ to: "/mfa" });
+    }
 
     return { me };
   },
