@@ -268,6 +268,7 @@ function StatusUsuario({ usuario: u }: { usuario: UsuarioPainel }) {
   if (!u.profileId) return <Badge variant="neutral">Aguardando 1º acesso</Badge>;
   if (!u.ativo) return <Badge variant="destructive">Inativo</Badge>;
   if (u.deve_trocar_senha) return <Badge variant="warning">Senha provisória</Badge>;
+  if (u.senha_vencida) return <Badge variant="warning">Senha vencida</Badge>;
   return <Badge variant="success">Ativo</Badge>;
 }
 

@@ -84,9 +84,11 @@ function PaginaAlterarSenha() {
         <CardHeader>
           <CardTitle>{me.deve_trocar_senha ? "Defina uma nova senha" : "Alterar senha"}</CardTitle>
           <CardDescription>
-            {me.deve_trocar_senha
-              ? "Você entrou com uma senha provisória. Por segurança, escolha uma senha só sua para continuar."
-              : `Conta: ${me.email}`}
+            {me.senha_vencida
+              ? "Sua senha tem mais de 90 dias e venceu. Escolha uma nova senha para continuar."
+              : me.deve_trocar_senha
+                ? "Você entrou com uma senha provisória. Por segurança, escolha uma senha só sua para continuar."
+                : `Conta: ${me.email}`}
           </CardDescription>
         </CardHeader>
         <CardContent>

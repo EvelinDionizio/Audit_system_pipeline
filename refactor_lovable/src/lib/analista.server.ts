@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import type { PayloadRevisao } from "@/lib/revisao.server";
+import { senhaVencida } from "@/lib/senha";
 
 /**
  * Leituras e escritas do Painel do Analista (substitui os endpoints
@@ -131,13 +132,15 @@ export type UsuarioPainel = {
   tipo_acesso: "sso" | "senha";
   /** Externo que ainda não trocou a senha provisória. */
   deve_trocar_senha: boolean;
+  /** Externo com a senha própria vencida (mais de 90 dias). */
+  senha_vencida: boolean;
 };
 
 /** Junta pré-cadastros (usuarios_autorizados) e quem já logou (profiles). */
 export async function listarUsuarios(db: Db): Promise<UsuarioPainel[]> {
   const [autorizados, perfis] = await Promise.all([
     db.from("usuarios_autorizados").select("email, nome, perfil, tipo_acesso"),
-    db.from("profiles").select("id, nome, email, ativo, ultimo_acesso, tipo_acesso, deve_trocar_senha"),
+    db.from("profiles").select("id, nome, email, ativo, ultimo_acesso, tipo_acesso, deve_trocar_senha, senha_alterada_em"),
   ]);
   falhar("Erro ao listar autorizações", autorizados.error);
   falhar("Erro ao listar perfis", perfis.error);
@@ -155,6 +158,7 @@ export async function listarUsuarios(db: Db): Promise<UsuarioPainel[]> {
       ultimo_acesso: p?.ultimo_acesso ?? null,
       tipo_acesso: a.tipo_acesso,
       deve_trocar_senha: p?.deve_trocar_senha ?? false,
+      senha_vencida: p ? senhaVencida(p) : false,
     };
   });
 
@@ -171,6 +175,7 @@ export async function listarUsuarios(db: Db): Promise<UsuarioPainel[]> {
         ultimo_acesso: p.ultimo_acesso,
         tipo_acesso: p.tipo_acesso,
         deve_trocar_senha: p.deve_trocar_senha,
+        senha_vencida: senhaVencida(p),
       });
     }
   }

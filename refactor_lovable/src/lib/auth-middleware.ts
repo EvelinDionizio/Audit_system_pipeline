@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { exigirAnalista } from "@/lib/auth.server";
+import { senhaVencida } from "@/lib/senha";
 
 /**
  * Middleware de autenticação das server functions (substitui require_auth da API).
@@ -54,18 +55,22 @@ export const authBasicoMiddleware = createMiddleware({ type: "function" })
 
     const perfil = await db
       .from("profiles")
-      .select("deve_trocar_senha")
+      .select("deve_trocar_senha, tipo_acesso, senha_alterada_em")
       .eq("id", data.user.id)
       .maybeSingle();
     if (perfil.error) {
       throw new Error(`Erro ao verificar o acesso: ${perfil.error.message}`);
     }
 
+    const provisoria = perfil.data?.deve_trocar_senha ?? false;
+    const vencida = perfil.data ? senhaVencida(perfil.data) : false;
+
     return next({
       context: {
         supabase: db,
         userId: data.user.id,
-        deveTrocarSenha: perfil.data?.deve_trocar_senha ?? false,
+        deveTrocarSenha: provisoria || vencida,
+        motivoTrocaSenha: provisoria ? ("provisoria" as const) : vencida ? ("vencida" as const) : null,
       },
     });
   });
@@ -74,7 +79,11 @@ export const authMiddleware = createMiddleware({ type: "function" })
   .middleware([authBasicoMiddleware])
   .server(async ({ next, context }) => {
     if (context.deveTrocarSenha) {
-      throw new Error("Troque a senha provisória antes de continuar.");
+      throw new Error(
+        context.motivoTrocaSenha === "vencida"
+          ? "Sua senha venceu (validade de 90 dias). Troque a senha antes de continuar."
+          : "Troque a senha provisória antes de continuar.",
+      );
     }
     return next();
   });
