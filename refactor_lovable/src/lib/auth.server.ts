@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { diasParaSenhaVencer, senhaVencida } from "@/lib/senha";
 
 export type Papel = Database["public"]["Enums"]["app_role"];
 
@@ -10,8 +11,12 @@ export type UsuarioAtual = {
   ativo: boolean;
   /** sso = entra pela Microsoft; senha = externo (e-mail e senha). */
   tipo_acesso: "sso" | "senha";
-  /** Senha provisória: precisa ser trocada antes de usar o sistema. */
+  /** Senha provisória ou vencida: precisa ser trocada antes de usar o sistema. */
   deve_trocar_senha: boolean;
+  /** Senha própria com mais de 90 dias (só externos); explica o motivo da troca. */
+  senha_vencida: boolean;
+  /** Dias até a senha vencer; null para quem entra pela Microsoft. */
+  dias_para_senha_vencer: number | null;
   /** null = ainda não autorizado por um analista. */
   papel: Papel | null;
 };
@@ -27,7 +32,7 @@ export async function getUsuarioAtual(
   const [perfil, papeis] = await Promise.all([
     db
       .from("profiles")
-      .select("id, nome, email, ativo, tipo_acesso, deve_trocar_senha")
+      .select("id, nome, email, ativo, tipo_acesso, deve_trocar_senha, senha_alterada_em")
       .eq("id", userId)
       .single(),
     db.from("user_roles").select("role").eq("user_id", userId),
@@ -47,7 +52,16 @@ export async function getUsuarioAtual(
       ? "auditor"
       : null;
 
-  return { ...perfil.data, papel };
+  const { senha_alterada_em, ...dados } = perfil.data;
+  const vencida = senhaVencida(perfil.data);
+
+  return {
+    ...dados,
+    deve_trocar_senha: dados.deve_trocar_senha || vencida,
+    senha_vencida: vencida,
+    dias_para_senha_vencer: dados.tipo_acesso === "senha" ? diasParaSenhaVencer(senha_alterada_em) : null,
+    papel,
+  };
 }
 
 /** Barra quem não é analista ativo (substitui require_analista nas server functions). */

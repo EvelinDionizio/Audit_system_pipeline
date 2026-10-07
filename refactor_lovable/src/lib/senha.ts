@@ -6,10 +6,32 @@ import { z } from "zod";
  *   - pelo menos uma letra minúscula
  *   - pelo menos uma letra maiúscula
  *   - pelo menos um número
- * A troca a cada 90 dias entra no próximo passo.
+ *   - troca a cada 90 dias (SENHA_VALIDADE_DIAS), exigida no servidor
  */
 
 export const SENHA_TAMANHO_MINIMO = 8;
+export const SENHA_VALIDADE_DIAS = 90;
+
+const MS_POR_DIA = 24 * 60 * 60 * 1000;
+
+/**
+ * Dias que faltam para a senha vencer (negativo = já venceu).
+ * Sem data de troca registrada a senha conta como vencida: na dúvida, exige a troca.
+ */
+export function diasParaSenhaVencer(senhaAlteradaEm: string | null, agora: Date = new Date()): number {
+  const alterada = senhaAlteradaEm ? Date.parse(senhaAlteradaEm) : Number.NaN;
+  if (Number.isNaN(alterada)) return -1;
+  const vencimento = alterada + SENHA_VALIDADE_DIAS * MS_POR_DIA;
+  return Math.ceil((vencimento - agora.getTime()) / MS_POR_DIA);
+}
+
+/** Só contas com senha própria vencem; quem entra pela Microsoft segue a política dela. */
+export function senhaVencida(
+  conta: { tipo_acesso: "sso" | "senha"; senha_alterada_em: string | null },
+  agora: Date = new Date(),
+): boolean {
+  return conta.tipo_acesso === "senha" && diasParaSenhaVencer(conta.senha_alterada_em, agora) < 0;
+}
 
 export type RegraSenha = { id: string; rotulo: string; ok: (senha: string) => boolean };
 
