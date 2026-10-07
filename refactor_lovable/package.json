@@ -5,7 +5,11 @@
   "scripts": {
     "dev": "vite dev --port 3000",
     "build": "vite build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "bun test tests",
+    "demo": "bun --env-file=.env.demo node_modules/vite/bin/vite.js dev --port 3000 --mode demo",
+    "demo:normas": "bun scripts/demo-indexar-normas.ts",
+    "demo:reset": "bun -e \"require('node:fs').rmSync('.demo', { recursive: true, force: true })\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

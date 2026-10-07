@@ -30,28 +30,27 @@ export type FiltroAuditorias = {
 };
 
 /**
- * Mesmos filtros de GET /api/auditorias: status (aceitando registros sem
- * status), intervalo de data_inicio e quantidade, sobre o histórico gravado.
+ * Mesmos filtros de GET /api/auditorias: status, intervalo de data_inicio e
+ * quantidade, sobre o histórico gravado. Tudo filtrado no banco: o limite vale
+ * depois dos filtros, então um intervalo antigo não some quando há muitos
+ * registros. Lista de status vazia = todos os status (inclusive sem status).
  */
 export async function listarAuditorias(db: Db, filtro: FiltroAuditorias) {
-  const { data, error } = await db
+  let consulta = db
     .from("auditorias")
     .select(
       "id, evaluation_id, checklist, unidade, auditor_cf, data_inicio, status_cf, percentual_conformidade, nivel_conformidade, total_itens, total_nc, total_parciais, total_reprocessamentos, processado_em",
-    )
-    .order("data_inicio", { ascending: false, nullsFirst: false })
-    .limit(500);
-  falhar("Erro ao listar auditorias", error);
+    );
 
-  return data
-    .filter((a) => {
-      if (filtro.status.length && a.status_cf !== null && !filtro.status.includes(a.status_cf)) return false;
-      const dia = (a.data_inicio ?? "").slice(0, 10);
-      if (filtro.de && dia && dia < filtro.de) return false;
-      if (filtro.ate && dia && dia > filtro.ate) return false;
-      return true;
-    })
-    .slice(0, filtro.limite);
+  if (filtro.status.length) consulta = consulta.in("status_cf", filtro.status);
+  if (filtro.de) consulta = consulta.gte("data_inicio", `${filtro.de}T00:00:00.000Z`);
+  if (filtro.ate) consulta = consulta.lte("data_inicio", `${filtro.ate}T23:59:59.999Z`);
+
+  const { data, error } = await consulta
+    .order("data_inicio", { ascending: false, nullsFirst: false })
+    .limit(filtro.limite);
+  falhar("Erro ao listar auditorias", error);
+  return data;
 }
 
 export async function historicoReprocessamentos(db: Db, evaluationId: number) {

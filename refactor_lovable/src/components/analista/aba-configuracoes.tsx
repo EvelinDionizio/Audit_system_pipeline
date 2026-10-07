@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { configItensQuery, regraItemSchema, salvarConfigItem } from "@/lib/analista.functions";
+import { MODO_DEMO } from "@/lib/auth-client";
 import { fmtDataHoraBR } from "@/lib/format";
 import { indexarNorma, listarNormas, removerNorma } from "@/lib/normas.functions";
 import { Filtros, SecTitulo, Tabela, campoCls, textoErro } from "./ui";
@@ -284,9 +285,16 @@ function NormasIndexadas() {
           className="hidden"
           onChange={(e) => e.target.files?.length && void enviar(e.target.files)}
         />
-        <Button variant="success" size="sm" disabled={progresso !== null} onClick={() => arquivoRef.current?.click()}>
-          <FileUp /> {progresso ?? "Enviar PDFs"}
-        </Button>
+        {MODO_DEMO ? (
+          // O envio usa o Storage do Supabase, que não existe na demonstração.
+          <p className="text-[13px] text-muted-foreground">
+            Na demonstração, as normas são indexadas pelo terminal: <code>bun run demo:normas</code>.
+          </p>
+        ) : (
+          <Button variant="success" size="sm" disabled={progresso !== null} onClick={() => arquivoRef.current?.click()}>
+            <FileUp /> {progresso ?? "Enviar PDFs"}
+          </Button>
+        )}
       </Filtros>
 
       {consulta.isError ? (

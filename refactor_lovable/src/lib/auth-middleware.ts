@@ -1,10 +1,14 @@
 import { createMiddleware } from "@tanstack/react-start";
 import { getRequestHeader } from "@tanstack/react-start/server";
 import { createClient } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { obterSessao } from "@/lib/auth-client";
 import { exigirAnalista } from "@/lib/auth.server";
 import { senhaVencida } from "@/lib/senha";
+import { criarClienteDemo } from "@/lib/demo/cliente-demo.server";
+import { PREFIXO_TOKEN_DEMO, modoDemo } from "@/lib/demo/modo.server";
+
+type MotivoTrocaSenha = "provisoria" | "vencida" | null;
 
 /**
  * Middleware de autenticação das server functions (substitui require_auth da API).
@@ -23,8 +27,8 @@ import { senhaVencida } from "@/lib/senha";
  */
 export const authBasicoMiddleware = createMiddleware({ type: "function" })
   .client(async ({ next }) => {
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
+    // obterSessao cobre também a sessão fictícia do modo demonstração.
+    const token = (await obterSessao())?.access_token;
     return next({
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
@@ -33,6 +37,19 @@ export const authBasicoMiddleware = createMiddleware({ type: "function" })
     const token = getRequestHeader("authorization")?.replace(/^Bearer\s+/i, "");
     if (!token) {
       throw new Error("Não autenticado.");
+    }
+
+    // Modo demonstração: banco SQLite local e login fictício.
+    if (modoDemo()) {
+      if (!token.startsWith(PREFIXO_TOKEN_DEMO)) throw new Error("Sessão inválida ou expirada.");
+      return next({
+        context: {
+          supabase: criarClienteDemo(),
+          userId: token.slice(PREFIXO_TOKEN_DEMO.length),
+          deveTrocarSenha: false,
+          motivoTrocaSenha: null as MotivoTrocaSenha,
+        },
+      });
     }
 
     // Env lido só aqui dentro, conforme a regra do runtime edge.
@@ -70,7 +87,7 @@ export const authBasicoMiddleware = createMiddleware({ type: "function" })
         supabase: db,
         userId: data.user.id,
         deveTrocarSenha: provisoria || vencida,
-        motivoTrocaSenha: provisoria ? ("provisoria" as const) : vencida ? ("vencida" as const) : null,
+        motivoTrocaSenha: (provisoria ? "provisoria" : vencida ? "vencida" : null) as MotivoTrocaSenha,
       },
     });
   });

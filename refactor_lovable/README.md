@@ -12,7 +12,7 @@ desta pasta espelha a raiz do projeto no Lovable: o conteúdo de `supabase/` e
 | 1. Banco (migrations) | ✅ pronta |
 | 2. Login (Microsoft Entra ID) | ✅ pronta |
 | 3a. Parecer com Claude + RAG das normas | ✅ pronta |
-| 3b. Integração Checklist Fácil (+ server function de revisão) | ⏳ aguardando definição da API |
+| 3b. Integração Checklist Fácil | ✅ pronta (falta validar com o token real) |
 | 5. Telas | ✅ pronta |
 | 6. Exportação Excel | ✅ pronta |
 
@@ -446,80 +446,106 @@ vão junto. Baixe um de tempos em tempos para fora dele.
 - Rotas sem token, ou com o token errado, respondem 401.
 - `bun run typecheck` e o build com o preset da Vercel sem erros.
 
-## Acesso de auditores externos (e-mail e senha)
+## Modo demonstração (SQLite local)
 
-Colaboradores continuam entrando pela Microsoft. Auditores externos (e-mail
-pessoal) entram com **e-mail e senha** criados por um analista: acesso nominal,
-sem cadastro público, sempre com perfil de auditor.
+Para apresentar o sistema sem Supabase, sem login Microsoft e sem o
+Checklist Fácil. **Só para uso local**: o modo se recusa a ligar na Vercel.
+
+```bash
+bun install
+bun run demo:normas   # opcional: indexa os PDFs de ../norms no SQLite (~15 s)
+bun run demo          # http://localhost:3000
+```
+
+- **Banco:** SQLite em `.demo/auditoria.sqlite` (fora do git), criado na
+  primeira execução com o schema das migrations, os triggers de pré-cadastro e
+  a trava do último analista. `bun run demo:reset` apaga e recomeça do zero.
+- **Login:** a tela `/auth` lista usuários fictícios (Ana Analista, Bruno
+  Auditor, Carla Souza). Diego Externo aparece como "Não autorizado" no painel.
+- **Auditorias:** #900000001, #900000002 e #900000003 são fictícias e fazem
+  o papel do Checklist Fácil.
+- **IA:** sem `ANTHROPIC_API_KEY` os pareceres são simulados (marcados
+  `[SIMULADO]`). Para usar o Claude de verdade, defina a chave no terminal
+  antes de `bun run demo`; ela não deve ser gravada em `.env.demo`.
+- **Normas:** a busca usa FTS5 (sem os radicais do português do Postgres,
+  então os resultados podem diferir um pouco). O envio de PDF pelo navegador
+  fica desativado; use `bun run demo:normas`.
+- **Sem RLS:** o banco é local e de demonstração; o acesso ao painel continua
+  barrado para quem não é analista.
 
 ### Como funciona
 
-1. O analista abre **Painel > Usuários > Novo acesso externo** (nome e e-mail).
-2. O sistema gera uma **senha temporária** (12 caracteres) e a mostra **uma única
-   vez**. O analista a repassa por um canal seguro. Não depende de envio de e-mail.
-3. No primeiro acesso, o externo é levado a `/alterar-senha` e **não usa nenhuma
-   outra tela nem função do servidor** até trocar a senha (o bloqueio vale no
-   servidor, em `authMiddleware`).
-4. Esqueceu a senha: o analista usa **Redefinir senha** e repassa a nova temporária.
+Nada nas telas nem nas server functions muda. Com `MODO_DEMO=true`:
+`authMiddleware` aceita a sessão fictícia e entrega um client SQLite
+(`src/lib/demo/cliente-demo.server.ts`) que imita o pedaço do client do
+Supabase usado pelo app; `criarClienteAdmin` usa o mesmo banco; e
+`buscarAuditoriaEstruturada` devolve as auditorias de exemplo.
 
-Política de senha (aplicada no navegador e no servidor, em `src/lib/senha.ts`):
-mínimo de 8 caracteres, uma letra minúscula, uma maiúscula e um número. A troca
-exige a senha atual e a nova precisa ser diferente.
+### Verificado em 2026-10-05
 
-### Arquivos
+- Login como Ana Analista → revisão da #900000001 (score 50% ponderado, 3 NC, 3
+  parciais, 4 conformes) → feedback "Aceitar" gravado.
+- Painel: auditoria listada, KPIs e score por auditor/checklist, Indicadores
+  com 1 sugestão aceita de 10, Usuários com os 4 status, trava do último
+  analista bloqueando a desativação da Ana.
+- 55 normas indexadas (2.899 trechos); na revisão seguinte o item do
+  capacete recuperou a NR-06 e o do cinto, a NR-35. Reprocessamento contado.
+- Planilha gerada a partir do payload salvo, com as 3 abas (testada por
+  script, sem download no navegador).
+
+## Parte 3b — Integração com o Checklist Fácil
 
 | Arquivo | Papel |
 |---|---|
-| `supabase/migrations/20261006100000_acesso_externo.sql` | `tipo_acesso`, `senha_alterada_em`, `deve_trocar_senha`; externo só auditor; trigger de troca de senha |
-| `src/lib/senha.ts` | Política de senha e gerador de senha temporária |
-| `src/lib/acesso-externo.server.ts` / `.functions.ts` | Criar acesso, redefinir senha, trocar a própria senha |
-| `src/lib/auth-senha.ts` | Login por e-mail e senha no navegador |
-| `src/lib/auth-middleware.ts` | `authBasicoMiddleware` e `authMiddleware` (bloqueia senha provisória) |
-| `src/routes/alterar-senha.tsx` | Tela de troca de senha |
-| `src/routes/auth.tsx`, `_authenticated/route.tsx` | Login com os dois métodos; redirecionamento para a troca |
-| `src/components/analista/aba-usuarios.tsx`, `app-header.tsx`, `botao-sair.tsx` | Gestão no painel, botão Trocar senha |
+| `src/lib/checklist-facil.server.ts` | Busca `v2/evaluations/{id}` na API de Integração e estrutura categorias → itens → resposta/comentário |
 
-### Para aplicar (nesta ordem)
+### Do Python para o novo código
 
-1. **Banco primeiro:** rodar a migration no banco. O código novo lê as colunas
-   novas; publicado antes da migration, o login quebra para todos.
-2. **Auth do Supabase:** ativar o provedor **E-mail** e **desligar o cadastro
-   público** ("Allow new users to sign up"). O sistema só cria contas pelo
-   servidor, com a chave de serviço.
-3. **Código:** copiar os arquivos acima (inteiros). **Não copiar** os que o
-   Lovable gera e mantém: `integrations/supabase/types.ts` (é regenerado depois
-   da migration), `lib/auth-client.ts`, `lib/supabase-admin.server.ts`,
-   `routeTree.gen.ts`, `start.ts`, `router.tsx`.
-4. Secrets: nenhum novo (usa `SUPABASE_SERVICE_ROLE_KEY`, já necessário).
+| Python | Destino |
+|---|---|
+| `api/client.py` (`get`, headers, URLs do `.env`) | `fetch` com Bearer e timeout de 30 s |
+| `polling_service.fetch_and_structure` | `buscarAuditoriaEstruturada` (mensagens de erro amigáveis) |
+| `enrichment_service.extract_audit_payload` | `estruturarAvaliacao` |
 
-### Atenção
+As regras de conformidade (notas 1-6, palavras-chave de texto livre), os
+pesos (Mandatório 3, Importantes 2, Desejáveis 1), o score ponderado e os
+níveis (90/75/60) são as mesmas. Conferido item a item contra o código
+Python com os mesmos dados: resultado idêntico (exceto a correção das palavras curtas, abaixo).
 
-- O workspace do Lovable pode ter uma regra que **proíbe e-mail e senha**.
-  Se o provedor E-mail não puder ser ativado, este fluxo não funciona.
-- Remover o pré-cadastro de um externo não está disponível no painel; para cortar
-  o acesso use **Desativar**.
-- O externo não aparece como "Não autorizado" ao ser desativado: ele entra e vê
-  "Acesso pendente".
+### Secrets
 
-### Pendente (próximos passos)
+- `CHECKLIST_FACIL_API_TOKEN`
+- `CHECKLIST_FACIL_INTEGRATION_URL` (`https://integration.checklistfacil.com.br`)
 
-- **MFA** para externos (TOTP por aplicativo autenticador).
-- **Expiração da senha a cada 90 dias** (`senha_alterada_em` já é gravada).
+### Diferenças em relação ao Python
 
-### Verificado em 2026-10-06
+- Um 404 da API agora diz "avaliação não encontrada". No Python virava
+  `{"data": []}` e a mensagem acabava sendo "não possui itens respondidos".
+- Sem os secrets, a mensagem diz quais definir.
 
-Teste ponta a ponta no navegador, com Supabase simulado (cria conta, login por
-senha e troca de senha, incluindo o efeito dos triggers):
+### Pendências e pontos de atenção
 
-- Analista cria o acesso; a senha temporária aparece uma vez; o externo aparece
-  como "Externo / Senha provisória".
-- Login com senha errada é recusado ("E-mail ou senha incorretos."); e-mail com
-  maiúsculas é normalizado.
-- Com a senha provisória, o externo é levado a `/alterar-senha` e o **servidor
-  barra** revisão, painel e criação de contas, mesmo chamadas diretamente.
-- Política de senha: 7 caracteres, sem minúscula, sem maiúscula, sem número, igual
-  à atual e senha atual errada são todas recusadas no servidor.
-- Troca válida leva à tela de revisão; o externo revisa, mas é barrado no painel
-  e nas funções de analista.
-- Redefinir senha invalida a senha anterior e exige nova troca.
-- Não testado: o Supabase real (provedor E-mail, e-mails, limites de tentativa).
+- **Validar com o token real.** Em agosto, `v2/evaluations` na API de
+  Integração respondia 404 para todas as avaliações (a listagem da API de
+  Analytics funcionava). Se isso persistir, a revisão mostra "não
+  encontrada"; nesse caso é preciso confirmar com a Checklist Fácil qual
+  endpoint devolve o detalhe e o formato do JSON.
+- **Corrigido em relação ao Python:** em respostas de texto livre sem nota, as palavras curtas (`nc`, `ok`, `sim`) agora valem só como palavra inteira. No Python eram busca de trecho, e `nc` marcava como não conforme qualquer texto que contivesse essas letras (ex.: `Financeiro`, `concluído`). As palavras longas seguem como no Python.
+- Fora desta parte: botão "Processar pendentes" (lote, usa a API de
+  Analytics) e aplicação das regras de `config_itens` na revisão (o Python
+  também não as aplicava na revisão).
+
+## Correções da revisão de código (2026-10)
+
+Pontos apontados numa revisão externa e corrigidos aqui:
+
+- **Erro de digitação** (`temErroOrtografico`): "instrução", "construção", "obstruída", "transporte" e afins não são mais marcados; siglas em maiúsculas (PCMSO, SESMT) também não.
+- **Texto livre sem nota:** negações ("não existe", "não apresentado", "sem ... adequado") e antônimos ("inadequado") viram não conforme em vez de conforme. Palavras de conformidade só valem no começo da palavra.
+- **Titularidade:** só quem revisou uma auditoria, ou um analista, pode reprocessá-la; antes, qualquer usuário ativo a "roubava". A checagem vem antes das chamadas pagas ao Claude.
+- **Chave da Anthropic:** sem `ANTHROPIC_API_KEY` a revisão falha com mensagem clara (só `PARECER_MOCK=true` ou a demonstração local simulam).
+- **Painel:** o limite de 500 vale depois dos filtros (status e datas vão para o banco); "Todos" inclui todos os status.
+- **Custo:** preços de Fable e demais modelos de fallback, e desconto de leitura de cache por modelo.
+- **Score:** código de resposta desconhecido não conta mais como zero ponto; a criticidade tem uma implementação só (`src/lib/criticidade.ts`).
+- **Testes:** `bun run test` cobre ortografia, negações e score (`tests/`).
+
+Ainda em aberto: limite de uso por usuário/auditoria (cada clique gera chamadas pagas), revisão em segundo plano com fila (hoje roda numa só requisição), vínculo entre o auditor do Checklist Fácil e o usuário, e `user_roles` não ser limpo ao remover o acesso.
